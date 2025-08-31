@@ -1,0 +1,89 @@
+import type { GetStaticProps, NextPage } from 'next';
+import Link from 'next/link';
+import Header from '../../components/Header';
+import fs from 'fs';
+import path from 'path';
+import styles from './projects.module.css';
+
+type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  tooling?: string[];
+  languages?: string[];
+  createdAt?: string;
+  files?: { path: string; content: string }[];
+};
+
+type Props = {
+  projects: Project[];
+};
+
+export const getStaticProps: GetStaticProps<Props> = async () => {
+  try {
+    const filePath = path.join(process.cwd(), '..', 'data', 'projects.json');
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(raw) as { projects: Project[] };
+    return { props: { projects: data.projects ?? [] } };
+  } catch (e) {
+    return { props: { projects: [] } };
+  }
+};
+
+const ProjectsPage: NextPage<Props> = ({ projects }) => {
+  return (
+    <>
+      <Header />
+      <main className={styles.container}>
+        <div className={styles.topRow}>
+          <h1 className={styles.title}>Projects</h1>
+            <Link href="/projects/create" className={styles.createBtn}>+ Create Project</Link>
+        </div>
+
+        <div className={styles.grid}>
+          {projects.length === 0 && <div className={styles.card}>No projects found.</div>}
+
+          {projects.map((p) => (
+            <div key={p.id} className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <div className={styles.cardTitle}>{p.name}</div>
+                  {p.description ? <div className={styles.cardDesc}>
+                    <strong className={styles.descHighlight}>{p.description}</strong>
+                  </div> : null}
+                </div>
+                <div className={styles.cardActions}>
+                  <Link href={`/ide?projectId=${encodeURIComponent(p.id)}`} className={styles.editLink}>Open IDE</Link>
+                  <Link href={`/projects/${p.id}/edit`} className={styles.editLink}>Edit</Link>
+                  <span>⋮</span>
+                </div>
+              </div>
+
+              <div className={styles.chips}>
+                {/* normalize tags: accept tooling or tools, languages or language */}
+                {((p.tooling ?? (p as any).tools ?? []) as string[]).slice(0, 2).map((t) => (
+                  <div key={t} className={styles.chip}>
+                    {t}
+                  </div>
+                ))}
+
+                {((p.languages ?? (p as any).language ? [(p as any).language] : []) as string[]).slice(0, 2).map((l) => (
+                  <div key={l} className={styles.chipAlt}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.metaRow}>
+                <div>{(p.files ?? []).length} tests</div>
+                <div>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ''}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </>
+  );
+};
+
+export default ProjectsPage;

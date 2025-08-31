@@ -1,0 +1,71 @@
+{
+  "projects": [
+    {
+      "id": "proj-001",
+      "name": "AI Assisted UI Automation MVP Seed",
+      "description": "Seed project to demonstrate MVP with AI assisted UI automation.",
+      "tooling": [
+        "Selenium",
+        "Playwright",
+        "Cypress"
+      ],
+      "languages": [
+        "JavaScript",
+        "TypeScript",
+        "Python",
+        "Java"
+      ],
+      "createdAt": "2025-08-31T07:55:00Z",
+      "updatedAt": "2025-08-31T07:55:00Z",
+      "files": [
+        {
+          "path": "README.md",
+          "content": "# AI Assisted UI Automation MVP Seed\nThis seed file seeds the MVP with example information."
+        },
+        {
+          "path": "src/index.ts",
+          "content": "console.log('Seed project loaded');"
+        }
+      ]
+    },
+    {
+      "id": "proj-002",
+      "name": "UI Automation Playground",
+      "description": "Experimentation project for AI-generated code and UI tests.",
+      "tooling": [
+        "Playwright",
+        "Cypress"
+      ],
+      "languages": [
+        "JavaScript",
+        "TypeScript"
+      ],
+      "createdAt": "2025-08-31T07:56:00Z",
+      "updatedAt": "2025-08-31T07:56:00Z",
+      "files": [
+        {
+          "path": "README.md",
+          "content": "# UI Automation Playground\nInitial seed for experiments."
+        },
+        {
+          "path": "playground.md",
+          "content": "Playground instructions."
+        }
+      ]
+    },
+    {
+      "id": "proj-1756645040104",
+      "name": "TestingTarun",
+      "testSuite": "Regression",
+      "language": "JavaScript",
+      "frameworkType": "UI",
+      "tools": [
+        "Playwright"
+      ],
+      "createdAt": "2025-08-31T12:57:18.352Z",
+      "frameworkIds": [],
+      "description": "Testing creation of Projects 1",
+      "files": []
+    }
+  ]
+}

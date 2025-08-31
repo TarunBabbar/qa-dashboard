@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": "user-01",
+      "name": "Tarun Babbar",
+      "email": "tarun@example.com",
+      "role": "admin",
+      "createdAt": "2025-08-31T07:58:00Z",
+      "updatedAt": "2025-08-31T07:58:00Z"
+    },
+    {
+      "id": "user-02",
+      "name": "Guest User",
+      "email": "guest@example.com",
+      "role": "user",
+      "createdAt": "2025-08-31T07:58:00Z",
+      "updatedAt": "2025-08-31T07:58:00Z"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+# --- Generic Node ---
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+*.tgz
+.npmrc
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# --- Frontend (Next.js) ---
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+frontend/.vercel/
+
+# Tailwind / PostCSS cache
+frontend/.tailwindcache/
+
+# --- Backend (TypeScript build) ---
+backend/dist/
+backend/tsconfig.tsbuildinfo
+backend/*.tsbuildinfo
+
+# Coverage / reports
+coverage/
+reports/
+
+# Lock files optional (uncomment if you want to ignore others)
+# yarn.lock
+# pnpm-lock.yaml
+
+# Misc build artifacts
+*.cache
+*.temp
+tmp/
+temp/
+
+# Logs directories
+logs/
+**/logs/
+
+# Local tooling
+.cache/
+.eslintcache
+
+# Git merge artifacts
+*.orig

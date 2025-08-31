@@ -1,0 +1,22 @@
+{
+  "runs": [
+    {
+      "id": "run-001",
+      "projectId": "proj-001",
+      "tool": "Playwright",
+      "startedAt": "2025-08-31T07:59:00Z",
+      "endedAt": "2025-08-31T08:03:00Z",
+      "status": "completed",
+      "results": "All tests passed"
+    },
+    {
+      "id": "run-002",
+      "projectId": "proj-002",
+      "tool": "Selenium",
+      "startedAt": "2025-08-31T08:04:00Z",
+      "endedAt": "2025-08-31T08:10:30Z",
+      "status": "failed",
+      "results": "Element not found on login page"
+    }
+  ]
+}

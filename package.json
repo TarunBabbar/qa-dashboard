@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-split": "^2.0.14",
+    "react-split-pane": "^0.1.92"
+  }
+}
