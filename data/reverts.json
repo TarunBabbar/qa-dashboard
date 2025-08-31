@@ -1,0 +1,222 @@
+{
+  "reverts": [
+    {
+      "id": "revert-1756669473130",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:33.130Z",
+      "filesBefore": [
+        {
+          "path": "package.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "package.json",
+          "content": "{\n  \"name\": \"proj-1756645040104\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Playwright TypeScript project testing login on saucedemo.com using POM and SOLID principles\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"test\": \"npx playwright test\",\n    \"test:headed\": \"npx playwright test --headed\",\n    \"test:debug\": \"npx playwright test --debug\",\n    \"lint\": \"npx eslint . --ext .ts\",\n    \"format\": \"npx prettier --write .\"\n  },\n  \"keywords\": [],\n  \"author\": \"\",\n  \"license\": \"MIT\",\n  \"devDependencies\": {\n    \"@playwright/test\": \"^1.45.0\",\n    \"eslint\": \"^8.45.0\",\n    \"prettier\": \"^2.8.8\",\n    \"typescript\": \"^5.5.0\"\n  },\n  \"engines\": {\n    \"node\": \">=16\"\n  },\n  \"prepare\": \"npx playwright install --with-deps\"\n}\n"
+        }
+      ],
+      "message": "Applied single file package.json"
+    },
+    {
+      "id": "revert-1756669474668",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:34.668Z",
+      "filesBefore": [
+        {
+          "path": "tsconfig.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "tsconfig.json",
+          "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"CommonJS\",\n    \"lib\": [\"ES2020\", \"DOM\"],\n    \"strict\": true,\n    \"moduleResolution\": \"node\",\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"resolveJsonModule\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \".\"\n  },\n  \"include\": [\"src\", \"tests\", \"playwright.config.ts\"]\n}\n"
+        }
+      ],
+      "message": "Applied single file tsconfig.json"
+    },
+    {
+      "id": "revert-1756669476327",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:36.327Z",
+      "filesBefore": [
+        {
+          "path": "playwright.config.ts",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30_000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  retries: 0,\n  workers: 2,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 10_000,\n    baseURL: 'http://www.saucedemo.com',\n    ignoreHTTPSErrors: true\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        }
+      ],
+      "message": "Applied single file playwright.config.ts"
+    },
+    {
+      "id": "revert-1756669477511",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:37.511Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/LoginPage.ts",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/LoginPage.ts",
+          "content": "import { Page, Locator } from '@playwright/test';\nimport InventoryPage from './InventoryPage';\n\n/**\n * LoginPage encapsulates interactions with the login screen.\n * Single Responsibility: only exposes actions & assertions relevant to the login page.\n */\nexport default class LoginPage {\n  private readonly page: Page;\n  private readonly usernameInput: Locator;\n  private readonly passwordInput: Locator;\n  private readonly loginButton: Locator;\n  private readonly errorMessage: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.usernameInput = page.locator('#user-name');\n    this.passwordInput = page.locator('#password');\n    this.loginButton = page.locator('#login-button');\n    this.errorMessage = page.locator('[data-test=\"error\"]');\n  }\n\n  /**\n   * Navigate to the login page. Uses baseURL from Playwright config when calling `page.goto` with '/'.\n   */\n  async goto(): Promise<void> {\n    await this.page.goto('/');\n    await this.usernameInput.waitFor({ state: 'visible' });\n  }\n\n  /**\n   * Perform login with provided credentials. Returns InventoryPage on success.\n   */\n  async login(username: string, password: string): Promise<InventoryPage> {\n    await this.usernameInput.fill(username);\n    await this.passwordInput.fill(password);\n    await Promise.all([\n      this.page.waitForNavigation({ waitUntil: 'networkidle' }),\n      this.loginButton.click()\n    ]);\n    return new InventoryPage(this.page);\n  }\n\n  /**\n   * Convenience method for the standard user credentials used in tests.\n   */\n  async loginAsStandardUser(): Promise<InventoryPage> {\n    return this.login('standard_user', 'secret_sauce');\n  }\n\n  async getErrorMessageText(): Promise<string> {\n    return this.errorMessage.textContent();\n  }\n\n  async isLoginButtonEnabled(): Promise<boolean> {\n    return this.loginButton.isEnabled();\n  }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/pages/LoginPage.ts"
+    },
+    {
+      "id": "revert-1756669478610",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:38.610Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/InventoryPage.ts",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/InventoryPage.ts",
+          "content": "import { Page, Locator, expect } from '@playwright/test';\n\n/**\n * InventoryPage represents the page users land on after successful authentication.\n * Encapsulates assertions and interactions with the inventory list.\n */\nexport default class InventoryPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly title: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('.inventory_list');\n    this.title = page.locator('.title');\n  }\n\n  async isLoaded(): Promise<boolean> {\n    // Ensure that the inventory list is visible\n    return this.inventoryContainer.isVisible();\n  }\n\n  async expectIsLoaded(): Promise<void> {\n    await expect(this.inventoryContainer).toBeVisible();\n    await expect(this.title).toHaveText('Products');\n  }\n\n  async getUrl(): Promise<string> {\n    return this.page.url();\n  }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/pages/InventoryPage.ts"
+    },
+    {
+      "id": "revert-1756669481243",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:41.243Z",
+      "filesBefore": [
+        {
+          "path": "tests/login.spec.ts",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "tests/login.spec.ts",
+          "content": "import { test, expect } from '@playwright/test';\nimport LoginPage from '../src/pages/LoginPage';\n\n/**\n * Test suite for login functionality using Page Object Model.\n * This test logs in with the provided standard credentials and verifies success.\n */\ntest.describe('Login Page - POM', () => {\n  test('should login successfully with standard_user / secret_sauce', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n\n    // Arrange - navigate to the app\n    await loginPage.goto();\n\n    // Act - login with the standard user\n    const inventoryPage = await loginPage.loginAsStandardUser();\n\n    // Assert - inventory page loaded\n    await inventoryPage.expectIsLoaded();\n\n    // Additionally assert URL is the expected inventory page\n    const url = await inventoryPage.getUrl();\n    expect(url).toContain('/inventory.html');\n  });\n\n  test('should show error with invalid credentials', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n    await loginPage.goto();\n\n    // invalid login\n    await loginPage.login('invalid_user', 'bad_password');\n\n    // Expect an error message to be visible\n    const errorText = await loginPage.getErrorMessageText();\n    expect(errorText).toBeTruthy();\n    expect(errorText.toLowerCase()).toContain('username and password do not match');\n  });\n});\n"
+        }
+      ],
+      "message": "Applied single file tests/login.spec.ts"
+    },
+    {
+      "id": "revert-1756669482927",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:42.927Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# proj-1756645040104 - Playwright UI Automation (TypeScript)\n\nThis project contains Playwright tests in TypeScript to validate the login flow of http://www.saucedemo.com using the Page Object Model (POM) and SOLID design principles.\n\nCredentials used in tests:\n- username: standard_user\n- password: secret_sauce\n\nPrerequisites:\n- Node.js >= 16\n\nSetup & run:\n1. Install dependencies:\n   npm install\n\n   The project runs a playright install step automatically (prepare script) to download browsers. If you encounter issues, run:\n   npx playwright install --with-deps\n\n2. Run tests:\n   npm test\n\nUseful commands:\n- npm run test:headed  -> run tests with visible browser\n- npm run test:debug   -> run Playwright in debug mode\n\nProject structure:\n- src/pages - Page Object Model classes\n- tests - Playwright test files\n- playwright.config.ts - Playwright configuration\n\nDesign notes:\n- Each page object has a single responsibility and exposes high-level actions.\n- Tests consume page objects to perform actions and assertions.\n\n"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1756669484186",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:44.186Z",
+      "filesBefore": [
+        {
+          "path": ".gitignore",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": ".gitignore",
+          "content": "node_modules/\nplaywright-report/\ntest-results/\ndist/\n.env\n.vscode/\n.idea/\ncoverage/\n"
+        }
+      ],
+      "message": "Applied single file .gitignore"
+    },
+    {
+      "id": "revert-1756669485812",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-08-31T19:44:45.812Z",
+      "filesBefore": [
+        {
+          "path": "package.json",
+          "content": "{\n  \"name\": \"proj-1756645040104\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Playwright TypeScript project testing login on saucedemo.com using POM and SOLID principles\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"test\": \"npx playwright test\",\n    \"test:headed\": \"npx playwright test --headed\",\n    \"test:debug\": \"npx playwright test --debug\",\n    \"lint\": \"npx eslint . --ext .ts\",\n    \"format\": \"npx prettier --write .\"\n  },\n  \"keywords\": [],\n  \"author\": \"\",\n  \"license\": \"MIT\",\n  \"devDependencies\": {\n    \"@playwright/test\": \"^1.45.0\",\n    \"eslint\": \"^8.45.0\",\n    \"prettier\": \"^2.8.8\",\n    \"typescript\": \"^5.5.0\"\n  },\n  \"engines\": {\n    \"node\": \">=16\"\n  },\n  \"prepare\": \"npx playwright install --with-deps\"\n}\n"
+        },
+        {
+          "path": "tsconfig.json",
+          "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"CommonJS\",\n    \"lib\": [\"ES2020\", \"DOM\"],\n    \"strict\": true,\n    \"moduleResolution\": \"node\",\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"resolveJsonModule\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \".\"\n  },\n  \"include\": [\"src\", \"tests\", \"playwright.config.ts\"]\n}\n"
+        },
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30_000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  retries: 0,\n  workers: 2,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 10_000,\n    baseURL: 'http://www.saucedemo.com',\n    ignoreHTTPSErrors: true\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        },
+        {
+          "path": "src/pages/LoginPage.ts",
+          "content": "import { Page, Locator } from '@playwright/test';\nimport InventoryPage from './InventoryPage';\n\n/**\n * LoginPage encapsulates interactions with the login screen.\n * Single Responsibility: only exposes actions & assertions relevant to the login page.\n */\nexport default class LoginPage {\n  private readonly page: Page;\n  private readonly usernameInput: Locator;\n  private readonly passwordInput: Locator;\n  private readonly loginButton: Locator;\n  private readonly errorMessage: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.usernameInput = page.locator('#user-name');\n    this.passwordInput = page.locator('#password');\n    this.loginButton = page.locator('#login-button');\n    this.errorMessage = page.locator('[data-test=\"error\"]');\n  }\n\n  /**\n   * Navigate to the login page. Uses baseURL from Playwright config when calling `page.goto` with '/'.\n   */\n  async goto(): Promise<void> {\n    await this.page.goto('/');\n    await this.usernameInput.waitFor({ state: 'visible' });\n  }\n\n  /**\n   * Perform login with provided credentials. Returns InventoryPage on success.\n   */\n  async login(username: string, password: string): Promise<InventoryPage> {\n    await this.usernameInput.fill(username);\n    await this.passwordInput.fill(password);\n    await Promise.all([\n      this.page.waitForNavigation({ waitUntil: 'networkidle' }),\n      this.loginButton.click()\n    ]);\n    return new InventoryPage(this.page);\n  }\n\n  /**\n   * Convenience method for the standard user credentials used in tests.\n   */\n  async loginAsStandardUser(): Promise<InventoryPage> {\n    return this.login('standard_user', 'secret_sauce');\n  }\n\n  async getErrorMessageText(): Promise<string> {\n    return this.errorMessage.textContent();\n  }\n\n  async isLoginButtonEnabled(): Promise<boolean> {\n    return this.loginButton.isEnabled();\n  }\n}\n"
+        },
+        {
+          "path": "src/pages/InventoryPage.ts",
+          "content": "import { Page, Locator, expect } from '@playwright/test';\n\n/**\n * InventoryPage represents the page users land on after successful authentication.\n * Encapsulates assertions and interactions with the inventory list.\n */\nexport default class InventoryPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly title: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('.inventory_list');\n    this.title = page.locator('.title');\n  }\n\n  async isLoaded(): Promise<boolean> {\n    // Ensure that the inventory list is visible\n    return this.inventoryContainer.isVisible();\n  }\n\n  async expectIsLoaded(): Promise<void> {\n    await expect(this.inventoryContainer).toBeVisible();\n    await expect(this.title).toHaveText('Products');\n  }\n\n  async getUrl(): Promise<string> {\n    return this.page.url();\n  }\n}\n"
+        },
+        {
+          "path": "tests/login.spec.ts",
+          "content": "import { test, expect } from '@playwright/test';\nimport LoginPage from '../src/pages/LoginPage';\n\n/**\n * Test suite for login functionality using Page Object Model.\n * This test logs in with the provided standard credentials and verifies success.\n */\ntest.describe('Login Page - POM', () => {\n  test('should login successfully with standard_user / secret_sauce', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n\n    // Arrange - navigate to the app\n    await loginPage.goto();\n\n    // Act - login with the standard user\n    const inventoryPage = await loginPage.loginAsStandardUser();\n\n    // Assert - inventory page loaded\n    await inventoryPage.expectIsLoaded();\n\n    // Additionally assert URL is the expected inventory page\n    const url = await inventoryPage.getUrl();\n    expect(url).toContain('/inventory.html');\n  });\n\n  test('should show error with invalid credentials', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n    await loginPage.goto();\n\n    // invalid login\n    await loginPage.login('invalid_user', 'bad_password');\n\n    // Expect an error message to be visible\n    const errorText = await loginPage.getErrorMessageText();\n    expect(errorText).toBeTruthy();\n    expect(errorText.toLowerCase()).toContain('username and password do not match');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# proj-1756645040104 - Playwright UI Automation (TypeScript)\n\nThis project contains Playwright tests in TypeScript to validate the login flow of http://www.saucedemo.com using the Page Object Model (POM) and SOLID design principles.\n\nCredentials used in tests:\n- username: standard_user\n- password: secret_sauce\n\nPrerequisites:\n- Node.js >= 16\n\nSetup & run:\n1. Install dependencies:\n   npm install\n\n   The project runs a playright install step automatically (prepare script) to download browsers. If you encounter issues, run:\n   npx playwright install --with-deps\n\n2. Run tests:\n   npm test\n\nUseful commands:\n- npm run test:headed  -> run tests with visible browser\n- npm run test:debug   -> run Playwright in debug mode\n\nProject structure:\n- src/pages - Page Object Model classes\n- tests - Playwright test files\n- playwright.config.ts - Playwright configuration\n\nDesign notes:\n- Each page object has a single responsibility and exposes high-level actions.\n- Tests consume page objects to perform actions and assertions.\n\n"
+        },
+        {
+          "path": ".gitignore",
+          "content": "node_modules/\nplaywright-report/\ntest-results/\ndist/\n.env\n.vscode/\n.idea/\ncoverage/\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "package.json",
+          "content": "{\n  \"name\": \"proj-1756645040104\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Playwright TypeScript project testing login on saucedemo.com using POM and SOLID principles\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"test\": \"npx playwright test\",\n    \"test:headed\": \"npx playwright test --headed\",\n    \"test:debug\": \"npx playwright test --debug\",\n    \"lint\": \"npx eslint . --ext .ts\",\n    \"format\": \"npx prettier --write .\"\n  },\n  \"keywords\": [],\n  \"author\": \"\",\n  \"license\": \"MIT\",\n  \"devDependencies\": {\n    \"@playwright/test\": \"^1.45.0\",\n    \"eslint\": \"^8.45.0\",\n    \"prettier\": \"^2.8.8\",\n    \"typescript\": \"^5.5.0\"\n  },\n  \"engines\": {\n    \"node\": \">=16\"\n  },\n  \"prepare\": \"npx playwright install --with-deps\"\n}\n"
+        },
+        {
+          "path": "tsconfig.json",
+          "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"CommonJS\",\n    \"lib\": [\"ES2020\", \"DOM\"],\n    \"strict\": true,\n    \"moduleResolution\": \"node\",\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"resolveJsonModule\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \".\"\n  },\n  \"include\": [\"src\", \"tests\", \"playwright.config.ts\"]\n}\n"
+        },
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: './tests',\n  timeout: 30_000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  retries: 0,\n  workers: 2,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 10_000,\n    baseURL: 'http://www.saucedemo.com',\n    ignoreHTTPSErrors: true\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        },
+        {
+          "path": "src/pages/LoginPage.ts",
+          "content": "import { Page, Locator } from '@playwright/test';\nimport InventoryPage from './InventoryPage';\n\n/**\n * LoginPage encapsulates interactions with the login screen.\n * Single Responsibility: only exposes actions & assertions relevant to the login page.\n */\nexport default class LoginPage {\n  private readonly page: Page;\n  private readonly usernameInput: Locator;\n  private readonly passwordInput: Locator;\n  private readonly loginButton: Locator;\n  private readonly errorMessage: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.usernameInput = page.locator('#user-name');\n    this.passwordInput = page.locator('#password');\n    this.loginButton = page.locator('#login-button');\n    this.errorMessage = page.locator('[data-test=\"error\"]');\n  }\n\n  /**\n   * Navigate to the login page. Uses baseURL from Playwright config when calling `page.goto` with '/'.\n   */\n  async goto(): Promise<void> {\n    await this.page.goto('/');\n    await this.usernameInput.waitFor({ state: 'visible' });\n  }\n\n  /**\n   * Perform login with provided credentials. Returns InventoryPage on success.\n   */\n  async login(username: string, password: string): Promise<InventoryPage> {\n    await this.usernameInput.fill(username);\n    await this.passwordInput.fill(password);\n    await Promise.all([\n      this.page.waitForNavigation({ waitUntil: 'networkidle' }),\n      this.loginButton.click()\n    ]);\n    return new InventoryPage(this.page);\n  }\n\n  /**\n   * Convenience method for the standard user credentials used in tests.\n   */\n  async loginAsStandardUser(): Promise<InventoryPage> {\n    return this.login('standard_user', 'secret_sauce');\n  }\n\n  async getErrorMessageText(): Promise<string> {\n    return this.errorMessage.textContent();\n  }\n\n  async isLoginButtonEnabled(): Promise<boolean> {\n    return this.loginButton.isEnabled();\n  }\n}\n"
+        },
+        {
+          "path": "src/pages/InventoryPage.ts",
+          "content": "import { Page, Locator, expect } from '@playwright/test';\n\n/**\n * InventoryPage represents the page users land on after successful authentication.\n * Encapsulates assertions and interactions with the inventory list.\n */\nexport default class InventoryPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly title: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('.inventory_list');\n    this.title = page.locator('.title');\n  }\n\n  async isLoaded(): Promise<boolean> {\n    // Ensure that the inventory list is visible\n    return this.inventoryContainer.isVisible();\n  }\n\n  async expectIsLoaded(): Promise<void> {\n    await expect(this.inventoryContainer).toBeVisible();\n    await expect(this.title).toHaveText('Products');\n  }\n\n  async getUrl(): Promise<string> {\n    return this.page.url();\n  }\n}\n"
+        },
+        {
+          "path": "tests/login.spec.ts",
+          "content": "import { test, expect } from '@playwright/test';\nimport LoginPage from '../src/pages/LoginPage';\n\n/**\n * Test suite for login functionality using Page Object Model.\n * This test logs in with the provided standard credentials and verifies success.\n */\ntest.describe('Login Page - POM', () => {\n  test('should login successfully with standard_user / secret_sauce', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n\n    // Arrange - navigate to the app\n    await loginPage.goto();\n\n    // Act - login with the standard user\n    const inventoryPage = await loginPage.loginAsStandardUser();\n\n    // Assert - inventory page loaded\n    await inventoryPage.expectIsLoaded();\n\n    // Additionally assert URL is the expected inventory page\n    const url = await inventoryPage.getUrl();\n    expect(url).toContain('/inventory.html');\n  });\n\n  test('should show error with invalid credentials', async ({ page }) => {\n    const loginPage = new LoginPage(page);\n    await loginPage.goto();\n\n    // invalid login\n    await loginPage.login('invalid_user', 'bad_password');\n\n    // Expect an error message to be visible\n    const errorText = await loginPage.getErrorMessageText();\n    expect(errorText).toBeTruthy();\n    expect(errorText.toLowerCase()).toContain('username and password do not match');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# proj-1756645040104 - Playwright UI Automation (TypeScript)\n\nThis project contains Playwright tests in TypeScript to validate the login flow of http://www.saucedemo.com using the Page Object Model (POM) and SOLID design principles.\n\nCredentials used in tests:\n- username: standard_user\n- password: secret_sauce\n\nPrerequisites:\n- Node.js >= 16\n\nSetup & run:\n1. Install dependencies:\n   npm install\n\n   The project runs a playright install step automatically (prepare script) to download browsers. If you encounter issues, run:\n   npx playwright install --with-deps\n\n2. Run tests:\n   npm test\n\nUseful commands:\n- npm run test:headed  -> run tests with visible browser\n- npm run test:debug   -> run Playwright in debug mode\n\nProject structure:\n- src/pages - Page Object Model classes\n- tests - Playwright test files\n- playwright.config.ts - Playwright configuration\n\nDesign notes:\n- Each page object has a single responsibility and exposes high-level actions.\n- Tests consume page objects to perform actions and assertions.\n\n"
+        },
+        {
+          "path": ".gitignore",
+          "content": "node_modules/\nplaywright-report/\ntest-results/\ndist/\n.env\n.vscode/\n.idea/\ncoverage/\n"
+        }
+      ],
+      "message": "Give me test case for ui automation to test login page, url= http://www.saucedemo.com, username - standard_user and password - secret_sauce"
+    }
+  ]
+}

@@ -13,7 +13,18 @@ import githubTheme from 'prism-react-renderer/themes/github';
 type FileItem = { path: string; content?: string };
 
 export default function IDEPage() {
+  // Offset (in px) to lift the prompt composer higher from the bottom so it isn't hidden by OS taskbar.
+  const INPUT_VERTICAL_OFFSET = 60; // adjust as needed
   // Helper to map file extension to Prism language
+  const [mode, setMode] = useState<'agent' | 'ask'>('agent');
+  const [scenario, setScenario] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
+  const [generated, setGenerated] = useState('');
+  const [aiFiles, setAiFiles] = useState<{ path: string; content: string }[]>([]);
+  const [appliedMap, setAppliedMap] = useState<Record<string, { applied: boolean; revertId?: string }>>({});
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   function langFromPath(path: string): Language {
     if (!path) return 'javascript';
     const ext = path.split('.').pop()?.toLowerCase();
@@ -74,6 +85,121 @@ export default function IDEPage() {
       });
     return () => { mounted = false; };
   }, [projectId]);
+
+  // Cleanup timers / aborts on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  async function sendPrompt() {
+    if (!projectId || !scenario.trim()) return;
+    setIsRunning(true);
+    const promptText = scenario;
+    setGenerated(`You: ${promptText}\n\n`);
+    setScenario(''); // clear textbox immediately
+    setAiFiles([]);
+    setAppliedMap({});
+    setCountdown(null);
+    abortControllerRef.current = new AbortController();
+    try {
+      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const res = await fetch(`${backendBase}/api/ai/generate-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, tool: 'Playwright', language: 'TypeScript', prompt: promptText }),
+        signal: abortControllerRef.current.signal,
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        setGenerated(prev => prev + 'Error: ' + txt);
+        setIsRunning(false);
+        return;
+      }
+      const json = await res.json();
+      const content = json.generatedCode ?? json.generated ?? json;
+      let parsed: { path: string; content: string }[] = [];
+      if (mode === 'agent') {
+        try {
+          parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        } catch {
+          parsed = [];
+        }
+        setAiFiles(parsed || []);
+      } else {
+        setAiFiles([]);
+      }
+      setGenerated(prev => prev + 'AI: ' + (typeof content === 'string' ? content : JSON.stringify(content, null, 2)));
+
+      if (mode === 'agent' && parsed.length > 0) {
+        setCountdown(30);
+        timerRef.current = window.setInterval(() => {
+          setCountdown(c => {
+            if (c === null) return null;
+            if (c <= 1) {
+              if (timerRef.current) window.clearInterval(timerRef.current);
+              timerRef.current = null;
+              autoApplyAll(parsed);
+              return null;
+            }
+            return c - 1;
+          });
+        }, 1000);
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError') setGenerated(prev => prev + 'Generation canceled');
+      else setGenerated(prev => prev + 'Generation failed: ' + (e.message || String(e)));
+    } finally {
+      setIsRunning(false);
+      abortControllerRef.current = null;
+    }
+  }
+
+  function stopGeneration() {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    setIsRunning(false);
+  }
+
+  async function autoApplyAll(parsedFiles: { path: string; content: string }[]) {
+    if (!projectId) return;
+    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    try {
+      const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: parsedFiles, message: scenario }) });
+      const json = await res.json();
+      if (res.ok) {
+        const revertId = json.revertId as string | undefined;
+        const m: Record<string, { applied: boolean; revertId?: string }> = {};
+        parsedFiles.forEach(f => m[f.path] = { applied: true, revertId });
+        setAppliedMap(m);
+      } else {
+        setGenerated(g => g + '\nAuto-apply error: ' + JSON.stringify(json));
+      }
+    } catch (err: any) {
+      setGenerated(g => g + '\nAuto-apply failed: ' + (err.message || String(err)));
+    }
+  }
+
+  async function applyFileNow(f: { path: string; content: string }) {
+    if (!projectId) return;
+    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    try {
+      const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: [f], message: 'Applied single file ' + f.path }) });
+      const json = await res.json();
+      if (res.ok) setAppliedMap(m => ({ ...m, [f.path]: { applied: true, revertId: json.revertId } }));
+    } catch {}
+  }
+
+  async function revertFile(f: { path: string; content: string }) {
+    const info = appliedMap[f.path];
+    if (!info?.revertId) return;
+    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    try {
+      const res = await fetch(`${backendBase}/api/ai/revert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revertId: info.revertId }) });
+      if (res.ok) setAppliedMap(m => ({ ...m, [f.path]: { applied: false } }));
+    } catch {}
+  }
 
   return (
     <>
@@ -273,28 +399,70 @@ export default function IDEPage() {
               </div>
 
               {/* Chat content */}
-              <div className={`flex-1 overflow-auto px-5 py-6 pb-44 transition-colors ${lightMode ? 'bg-gradient-to-b from-white to-slate-50' : 'p-4 pb-40'}`}>
-                <div className={`text-center ${lightMode ? 'text-slate-500' : 'text-slate-300'} text-sm py-6`}>
-                  <div className="text-3xl mb-2">🤖</div>
-                  <div className={`${lightMode ? 'text-slate-600' : 'text-slate-200'} font-medium`}>No assistant output yet.</div>
-                  <div className={`${lightMode ? 'text-slate-400' : 'text-slate-500'} text-xs mt-1`}>Ask a question or request a change below</div>
+              <div className={`flex-1 overflow-auto px-5 py-4 pb-44 transition-colors space-y-4 ${lightMode ? 'bg-gradient-to-b from-white to-slate-50' : 'p-4 pb-40'}`}>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="font-medium">Mode: {mode === 'agent' ? 'Agent (auto apply)' : 'Ask (review only)'} {mode==='agent' && countdown !== null ? ` - Auto applying in ${countdown}s` : ''}</span>
+                  {isRunning && <span className="animate-pulse text-blue-600">Generating...</span>}
                 </div>
+                <div className={`rounded-md border p-3 text-xs whitespace-pre-wrap ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800/40 border-slate-600/50 text-slate-200'}`}>{generated || (isRunning ? 'Waiting for response...' : 'No output yet')}</div>
+                {mode === 'agent' && aiFiles.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Files Returned <span className="text-xs font-normal text-slate-500">({aiFiles.length})</span></h3>
+                    <div className="space-y-2">
+                      {aiFiles.map(f => (
+                        <details key={f.path} className={`rounded border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800/40 border-slate-600/40'} p-2`}>
+                          <summary className="flex items-center justify-between gap-3 cursor-pointer">
+                            <span className="font-mono text-[11px] truncate flex-1">{f.path}</span>
+                            <span className="flex gap-2 flex-shrink-0">
+                              <button onClick={e => { e.preventDefault(); applyFileNow(f); }} disabled={!!appliedMap[f.path]?.applied} className={`px-2 py-1 text-[10px] rounded ${appliedMap[f.path]?.applied ? 'bg-green-200 text-green-700 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-500'}`}>Apply</button>
+                              <button onClick={e => { e.preventDefault(); revertFile(f); }} disabled={!appliedMap[f.path]?.applied} className={`px-2 py-1 text-[10px] rounded ${appliedMap[f.path]?.applied ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-200 text-red-500 cursor-not-allowed'}`}>Revert</button>
+                            </span>
+                          </summary>
+                          <pre className="mt-2 max-h-64 overflow-auto text-[11px] whitespace-pre-wrap">{f.content}</pre>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Input */}
-              <div style={{ position: 'sticky', bottom: lightMode ? '24px' : '28px', zIndex: 30 }} className={`mt-auto px-5 transition-all`}>
+              <div style={{ position: 'sticky', bottom: INPUT_VERTICAL_OFFSET, zIndex: 30 }} className={`mt-auto px-5 transition-all`}>
                 {/* gradient fade */}
                 <div className={`pointer-events-none absolute left-0 right-0 ${lightMode ? '-top-8 h-8' : '-top-6 h-6'}`} style={{ background: lightMode ? 'linear-gradient(to top, rgba(255,255,255,0.9), rgba(255,255,255,0))' : 'linear-gradient(to top, rgba(15,23,42,0.9), rgba(15,23,42,0))' }} />
                 <div className={`relative rounded-xl border shadow-sm transition-all ${lightMode ? 'bg-white border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100' : 'border-slate-600/60 bg-slate-900/70 focus-within:border-blue-500 focus-within:shadow-blue-600/40'} backdrop-blur`}> 
-                  <textarea
-                    className={`w-full px-3 py-2.5 pr-12 text-sm leading-relaxed rounded-xl resize-none focus:outline-none placeholder:opacity-70 ${lightMode ? 'text-slate-700 placeholder-slate-400 bg-transparent' : 'text-slate-100 placeholder-slate-500 bg-transparent'}`}
-                    style={{ minHeight: '60px', maxHeight: '200px', overflowY: 'auto', fontSize: '13px' }}
-                    placeholder="Enter your prompt here... (Shift+Enter for new line)"
-                    rows={3}
-                  />
+                  <div className="relative">
+                    {/* Mode selector inside input */}
+                    <div className="absolute left-2 top-2 z-10">
+                      <select
+                        value={mode}
+                        onChange={e => setMode(e.target.value as 'agent' | 'ask')}
+                        className={`text-xs rounded-md border px-1.5 py-1 pr-5 appearance-none bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${lightMode ? 'border-slate-300 text-slate-600' : 'border-slate-600 bg-slate-800 text-slate-200'}`}
+                        style={{ fontWeight: 500 }}
+                      >
+                        <option value="agent">Agent</option>
+                        <option value="ask">Ask</option>
+                      </select>
+                    </div>
+                    <textarea
+                      className={`w-full px-3 pt-9 pb-2.5 pr-12 text-sm leading-relaxed rounded-xl resize-none focus:outline-none placeholder:opacity-70 ${lightMode ? 'text-slate-700 placeholder-slate-400 bg-transparent' : 'text-slate-100 placeholder-slate-500 bg-transparent'}`}
+                      style={{ minHeight: '70px', maxHeight: '220px', overflowY: 'auto', fontSize: '13px' }}
+                      placeholder="Enter your prompt here... (Shift+Enter for new line)"
+                      rows={3}
+                      value={scenario}
+                      onChange={e => setScenario(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); } }}
+                    />
+                  </div>
                   <div className="absolute right-2.5 bottom-2 flex items-center gap-1">
-                    <button title="Send" className={`p-2 rounded-lg font-medium transition shadow ${lightMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/50'}`}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12l14-8-6 8 6 8-14-8z"/></svg>
+                    <button title="Send" disabled={isRunning} onClick={sendPrompt} className={`p-2 rounded-lg font-medium transition shadow disabled:opacity-50 ${lightMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/50'}`}>
+                      {/* Right pointing paper plane icon */}
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 12l18-9-6 9 6 9-18-9z" />
+                      </svg>
+                    </button>
+                    <button title="Stop" onClick={stopGeneration} disabled={!isRunning} className={`p-2 rounded-lg font-medium transition shadow disabled:opacity-40 ${lightMode ? 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}>
+                      <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><rect x="5" y="5" width="10" height="10" rx="1" /></svg>
                     </button>
                   </div>
                 </div>
