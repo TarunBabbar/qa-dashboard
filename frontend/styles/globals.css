@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root{
+  --vscode-bg:#1e1e1e;        /* editor background */
+  --vscode-panel:#252526;     /* side panels */
+  --vscode-border:#2d2d2d;    /* borders */
+  --vscode-text:#d4d4d4;      /* default text */
+  --vscode-accent:#007acc;    /* VS Code blue */
+  --vscode-accent-hover:#3794ff;
+}
+
+pre[class*="language-"],
+code[class*="language-"] {
+  background: transparent !important;
+  color: var(--vscode-text) !important;
+}
+
+.token {
+  background: transparent !important;
+}
+
+pre[class*="language-"] {
+  background: transparent !important;
+}
+
+pre[class*="language-"][style] {
+  background: var(--vscode-panel) !important;
+}
+
+
+/* Prevent unexpected overflow by using border-box sizing globally */
+:root, html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
 @layer base {
   html, body, #__next { height: 100%; }
   body {
@@ -12,9 +44,48 @@
   code, pre { @apply font-mono; }
 }
 
+/* --- IDE Page Specific Layout Fixes --- */
+.app-root.ide-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+.app-root.ide-page .flex-1,
+.app-root.ide-page .SplitPane,
+.app-root.ide-page .Pane {
+  min-height: 0 !important;
+  overflow: auto;
+}
+.app-root.ide-page .ai-assistant-panel .flex-1 {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* ensure messages aren’t hidden behind the sticky composer */
+.app-root.ide-page .ai-assistant-panel .chat-scroll-content {
+  padding-bottom: 56px; /* was 56px; bumped for the new rounded composer */
+  padding-right: 18px;
+}
+
+/* Give space below the composer so it's not flush with OS taskbar */
+.app-root.ide-page .ai-assistant-panel {
+  padding-bottom: 40px; /* adjust 12–24px as needed */
+}
+
+
+.app-root.ide-page pre,
+.app-root.ide-page code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.app-root.ide-page textarea { min-height: 40px; }
+
+/* Slightly lighter scrollbar styling inside IDE panes (optional) */
+.app-root.ide-page .custom-scroll::-webkit-scrollbar-thumb { background: #b6c2ce; }
+
 @layer components {
   .container { @apply max-w-7xl mx-auto px-6; }
-  /* cards should be white with subtle shadows per screenshot */
   .card { @apply bg-white p-6 rounded-lg shadow-sm; }
 }
 
@@ -30,7 +101,7 @@
 .nav-link.active { background: #e6f0ff; color: #1e3a8a; font-weight: 600; }
 .icon { width: 18px; height: 18px; }
 
-.main { margin-left: 260px; flex: 1; padding: 32px; }
+.main { margin-left: 260px; flex: 1; padding: 32px; box-sizing: border-box; overflow: auto; }
 .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px; }
 .page-title { font-size: 28px; font-weight: 700; color: #0f172a; margin:0; }
 .status { color: #059669; margin-top:6px; }
@@ -52,4 +123,44 @@
   .main { margin-left: 0; padding: 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .panels { grid-template-columns: 1fr; }
+}
+
+/* Pretty <kbd> hints */
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid rgba(100,116,139,.35);
+  padding: 1px 4px;
+}
+
+/* Kill ghost white strip in SplitPane */
+.Resizer {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  flex: 0 0 auto !important;  /* don’t let it expand */
+}
+
+/* Vertical resizer (between columns) */
+.Resizer.vertical {
+  width: 1px !important;      /* basically invisible */
+  background: transparent !important;
+  cursor: col-resize;
+}
+
+/* Horizontal resizer (between rows) */
+.Resizer.horizontal {
+  height: 1px !important;
+  background: transparent !important;
+  cursor: row-resize;
+}
+
+/* Make inline styles irrelevant */
+.Resizer[style] {
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }

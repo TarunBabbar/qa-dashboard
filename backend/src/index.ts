@@ -240,7 +240,15 @@ app.post('/api/ai/generate-code', async (req: Request, res: Response) => {
       }
     }
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const systemPrompt = `You are a senior software engineer and test automation architect. When given a user scenario, produce a complete, ready-to-run UI automation project code for the requested tool and language. Follow SOLID principles and Page Object Model: separate page classes and test cases. Organize files and folders appropriately. Ensure code compiles and runs without errors. IMPORTANT: always include any package manifest or dependency files required to install and run the project (for example: Node/npm -> package.json, pnpm-lock.json; Python -> requirements.txt or pyproject.toml; Java -> pom.xml or build.gradle). Return only a single JSON array value (no extra text) in the following shape: [{ "path": "relative/path/to/file.ext", "content": "<file contents>" }]. Use UTF-8, escape newlines properly in JSON strings. Use realistic package/dependency snippets and small README and tests where appropriate.`; 
+  const systemPrompt = `You are a senior software engineer and test automation architect. When given a user scenario, produce a complete, ready-to-run UI automation project code for the requested tool and language. Follow SOLID principles and Page Object Model: separate page classes and test cases. Organize files and folders appropriately. Ensure code compiles and runs without errors. IMPORTANT: always include any package manifest or dependency files required to install and run the project (for example: Node/npm -> package.json, pnpm-lock.json; Python -> requirements.txt or pyproject.toml; Java -> pom.xml or build.gradle).
+
+  File placement rules:
+  - All UI page or route files that belong in the web app's pages/layouts should be returned under paths that start with 'pages/' (for example: 'pages/loginpage.tsx', 'pages/account/settings.tsx').
+  - All automated test specs should be returned under paths that start with 'tests/' (or 'tests/<tool>/') and use clear naming like 'tests/loginspec.ts' or 'tests/login.spec.ts' depending on the tool conventions. If the tool is Playwright or Playwright Test, prefer 'tests/<name>.spec.ts' or 'tests/<name>.test.ts'; if Playwright with a 'tests/' folder, keep it there. For Playwright projects include a 'playwright.config.ts' under the project root.
+  - Page component files that are part of the frontend (React/Next.js or similar) must go under 'pages/' or 'src/pages/' depending on the project's usual structure — prefer 'pages/' if unsure.
+  - Support files (page objects, helpers, fixtures) may go under 'src/', 'lib/', or 'tests/helpers/' but avoid placing test specs outside 'tests/'.
+
+  Return only a single JSON array value (no extra text) in the following shape: [{ "path": "relative/path/to/file.ext", "content": "<file contents>" }]. Use UTF-8, escape newlines properly in JSON strings. Use realistic package/dependency snippets and small README and tests where appropriate.`; 
 
     const userPrompt = `Project: ${projectId}\nTool: ${tool}\nLanguage: ${language}\nScenario: ${prompt ?? ''}\nRequirements: produce runnable code, Page Object Model, SOLID design, clear folder structure, and include any package manifest or build scripts needed to run tests. Output MUST be a single JSON array as described.`;
 
@@ -367,6 +375,57 @@ app.post('/api/runs', (req: Request, res: Response) => {
   runsData.runs.push(newRun);
   writeJson<{ runs: Run[] }>(runsPath, runsData);
   res.status(201).json(newRun);
+});
+
+// Ask endpoint: returns an explanation (text) for a user's question. If the user explicitly
+// asks for code (or the assistant detects a code request), return code or code snippets.
+app.post('/api/ai/ask', async (req: Request, res: Response) => {
+  const { projectId, prompt, preferCode } = req.body as any;
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(400).json({ error: 'OPENAI_API_KEY not configured in environment' });
+  }
+
+  try {
+    if (!openaiClient) {
+      initOpenAIClient();
+      if (!openaiClient) throw new Error('OpenAI client not initialized');
+    }
+
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    const systemPrompt = `You are a helpful software engineer and technical explainer. When asked a question, produce a clear, concise explanation. If the user requests code samples or the question implies code is required, return a small, focused code snippet and label it clearly. Keep answers readable and avoid extra prose.`;
+    const userPrompt = `Question: ${prompt ?? ''}\nProject: ${projectId ?? 'none'}\nReturn code if the user requests it or if it is needed to answer. Otherwise, return a clear textual explanation.`;
+
+    let answer = '';
+    if (typeof openaiClient.createChatCompletion === 'function') {
+      const response = await openaiClient.createChatCompletion({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      });
+      answer = (response as any)?.data?.choices?.[0]?.message?.content ?? '';
+    } else if (openaiClient?.chat && typeof openaiClient.chat.completions.create === 'function') {
+      const response = await openaiClient.chat.completions.create({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      });
+      answer = (response as any)?.choices?.[0]?.message?.content ?? '';
+    } else {
+      throw new Error('Unsupported OpenAI client');
+    }
+
+    // If preferCode flag is set and the assistant returned text that looks like JSON array
+    // of files we might forward that verbatim; otherwise return the answer string.
+    // For simplicity, we always return { answer } and the frontend can choose how to render it.
+    res.json({ answer });
+  } catch (err) {
+    console.error('AI ask error', err);
+    res.status(500).json({ error: (err as Error).message || String(err) });
+  }
 });
 
 // 404 fallback
