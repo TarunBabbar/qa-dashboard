@@ -62,3 +62,4 @@ logs/
 
 # Git merge artifacts
 *.orig
+data/projects.json

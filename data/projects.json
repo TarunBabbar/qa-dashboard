@@ -103,7 +103,7 @@
           "content": "import { Page, Locator } from '@playwright/test';\n\n// Represents the products (inventory) page after successful login\nexport class ProductsPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly pageTitle: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('#inventory_container');\n    this.pageTitle = page.locator('.title');\n  }\n\n  async isOpen(): Promise<boolean> {\n    return this.inventoryContainer.isVisible();\n  }\n\n  async getTitle(): Promise<string> {\n    return (await this.pageTitle.textContent())?.trim() ?? '';\n  }\n}\n"
         }
       ],
-      "updatedAt": "2025-09-01T06:49:45.182Z"
+      "updatedAt": "2025-09-02T19:48:25.565Z"
     }
   ]
 }

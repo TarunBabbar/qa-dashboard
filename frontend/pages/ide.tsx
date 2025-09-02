@@ -5,12 +5,22 @@ import { useEffect, useRef, useState } from 'react';
 import React from "react";
 const SplitPane = require('react-split-pane').default;
 import { getProject } from '../lib/api';
-import Highlight, { defaultProps, Language } from 'prism-react-renderer';
-import vsDarkTheme from 'prism-react-renderer/themes/vsDark';
-import githubTheme from 'prism-react-renderer/themes/github';
-import vsDarkPlus from 'prism-react-renderer/themes/vsDark';
 import { Sun, Moon } from "lucide-react";
 
+import Editor from "react-simple-code-editor";
+import Highlight, { defaultProps, Language } from "prism-react-renderer";
+import vsDarkTheme from "prism-react-renderer/themes/vsDark";
+import githubTheme from "prism-react-renderer/themes/github";
+
+// ADD these right after the imports:
+const darkPrismNoBG = {
+  ...vsDarkTheme,
+  plain: { ...vsDarkTheme.plain, backgroundColor: 'transparent', background: 'transparent' }
+};
+const lightPrismNoBG = {
+  ...githubTheme,
+  plain: { ...githubTheme.plain, backgroundColor: 'transparent', background: 'transparent' }
+};
 
 // ---------- Small UI helpers ----------
 function Chevron({ open, size = 12, lightMode }: { open: boolean, size?: number, lightMode: boolean }) {
@@ -66,38 +76,38 @@ function AIAnswerRenderer({ answer, lightMode }: { answer: string; lightMode: bo
   }
 
   function renderRichText(content: string, key: number) {
-  const paragraphs = content.replace(/\r/g, '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
-  return paragraphs.map((p, idx) => {
-    const lines = p.split(/\n/).map(l => l.trim()).filter(Boolean);
+    const paragraphs = content.replace(/\r/g, '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    return paragraphs.map((p, idx) => {
+      const lines = p.split(/\n/).map(l => l.trim()).filter(Boolean);
 
-    // Ordered list: all lines start with "1. ", "2. " etc.
-    if (lines.length > 1 && lines.every(l => /^\d+\.\s+/.test(l))) {
-      const items = lines.map(l => l.replace(/^\d+\.\s*/, ''));
+      // Ordered list
+      if (lines.length > 1 && lines.every(l => /^\d+\.\s+/.test(l))) {
+        const items = lines.map(l => l.replace(/^\d+\.\s*/, ''));
+        return (
+          <ol key={`ol-${key}-${idx}`} className={`list-decimal ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
+            {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
+          </ol>
+        );
+      }
+
+      // Unordered list
+      if (lines.length > 1 && lines.every(l => /^[-*+]\s+/.test(l))) {
+        const items = lines.map(l => l.replace(/^[-*+]\s*/, ''));
+        return (
+          <ul key={`ul-${key}-${idx}`} className={`list-disc ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
+            {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
+          </ul>
+        );
+      }
+
+      // Paragraph
       return (
-        <ol key={`ol-${key}-${idx}`} className={`list-decimal ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-          {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
-        </ol>
+        <p key={`p-${key}-${idx}`} className={`text-sm leading-relaxed whitespace-pre-wrap ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
+          {p}
+        </p>
       );
-    }
-
-    // Unordered list: all lines start with "-", "*", or "+"
-    if (lines.length > 1 && lines.every(l => /^[-*+]\s+/.test(l))) {
-      const items = lines.map(l => l.replace(/^[-*+]\s*/, ''));
-      return (
-        <ul key={`ul-${key}-${idx}`} className={`list-disc ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-          {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
-        </ul>
-      );
-    }
-
-    // Otherwise, just a normal paragraph
-    return (
-      <p key={`p-${key}-${idx}`} className={`text-sm leading-relaxed whitespace-pre-wrap ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-        {p}
-      </p>
-    );
-  });
-}
+    });
+  }
 
   if (!parts || parts.length === 0)
     return <div className={`text-sm ${lightMode ? 'text-slate-800' : 'text-slate-200'}`}>{answer}</div>;
@@ -106,7 +116,6 @@ function AIAnswerRenderer({ answer, lightMode }: { answer: string; lightMode: bo
     <div className="space-y-3">
       {parts.map((p, i) => {
         if (p.type === 'text') {
-          // Assistant plain text (no bubble)
           return (
             <div
               key={i}
@@ -162,13 +171,12 @@ function AIAnswerRenderer({ answer, lightMode }: { answer: string; lightMode: bo
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
 export default function IDEPage() {
-
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
 
-// toggle helper
-const toggleFolder = (name: string) => {
-  setFolderOpen(prev => ({ ...prev, [name]: !prev[name] }));
-};
+  // toggle helper
+  const toggleFolder = (name: string) => {
+    setFolderOpen(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   const INPUT_VERTICAL_OFFSET = 60;
 
@@ -176,7 +184,7 @@ const toggleFolder = (name: string) => {
   const [mode, setMode] = useState<'agent' | 'ask'>('agent');
   const [scenario, setScenario] = useState('');
   const [isRunning, setIsRunning] = useState(false);
-  const [messages, setMessages] = useState<ChatMsg[]>([]); // <— NEW: Chat array
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [aiFiles, setAiFiles] = useState<{ path: string; content: string }[]>([]);
   const [appliedMap, setAppliedMap] = useState<Record<string, { applied: boolean; revertId?: string }>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -188,6 +196,10 @@ const toggleFolder = (name: string) => {
 
   // Composer auto-resize
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // --- NEW: track unsaved files (MOVED inside component) ---
+  const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
@@ -213,6 +225,62 @@ const toggleFolder = (name: string) => {
   // Theme
   const [lightMode, setLightMode] = useState(true);
   const [modeMenuOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  // --- Save handler (clears dirty for the file) ---
+  const handleSave = React.useCallback(async () => {
+    if (!activeFile || !projectId) return;
+    try {
+      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(activeFile.path)}`;
+
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: activeFile.content ?? "" }),
+      });
+
+      // keep tabs/explorer in sync with the saved content
+      setFiles(prev => prev.map(f => f.path === activeFile.path ? { ...f, content: activeFile.content ?? "" } : f));
+
+      // clear dirty flag for this file
+      setDirtyPaths(prev => {
+        const next = new Set(prev);
+        next.delete(activeFile.path);
+        return next;
+      });
+
+      setSaveMessage("✨ Code saved successfully!");
+      setTimeout(() => setSaveMessage(null), 2500);
+    } catch {
+      setSaveMessage("❌ Failed to save file");
+      setTimeout(() => setSaveMessage(null), 2500);
+    }
+  }, [activeFile, projectId, setFiles]);
+
+  // Ctrl/Cmd+S to save
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSave]);
+
+  // Warn on page close/refresh if any unsaved edits
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyPaths.size > 0) {
+        e.preventDefault();
+        e.returnValue = ""; // required for Chrome
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirtyPaths]);
 
   // Load project
   useEffect(() => {
@@ -503,8 +571,7 @@ const toggleFolder = (name: string) => {
           <div className="max-w-[1100px] mx-auto flex items-center justify-between">
             <h1 className={`text-2xl font-semibold ${lightMode ? 'text-slate-800' : 'text-[var(--vscode-text)]'}`}>IDE & AI Assistance</h1>
             <div className="flex items-center gap-2">
-              {/* <button onClick={() => setLightMode(l => !l)} className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${lightMode ? 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600' : 'bg-slate-800/60 border-slate-600 hover:bg-slate-700 text-slate-200'}`}>{lightMode ? 'Dark' : 'Light'} Mode</button> */}
-            <button onClick={() => setLightMode(l => !l)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title={lightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}> {lightMode ? (<Moon className="w-5 h-5 text-slate-600" />) : (<Sun className="w-5 h-5 text-yellow-400" />)}</button>
+              <button onClick={() => setLightMode(l => !l)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title={lightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}> {lightMode ? (<Moon className="w-5 h-5 text-slate-600" />) : (<Sun className="w-5 h-5 text-yellow-400" />)}</button>
             </div>
           </div>
         </div>
@@ -571,158 +638,158 @@ const toggleFolder = (name: string) => {
                           ) : (
                             <div className="text-sm">
                               {Object.keys(groups).map((grp) => {
-  const isFolder = grp !== '_root';
-  const isOpen = folderOpen[grp] ?? true; // default open
+                                const isFolder = grp !== '_root';
+                                const isOpen = folderOpen[grp] ?? true; // default open
 
-  if (isFolder) {
-    return (
-      <div key={grp} className="mb-4">
-        <div className={`flex items-center justify-between mb-2 ${lightMode ? 'text-slate-500' : 'text-blue-400'}`}>
-          <div
-            className="flex items-center gap-2 font-medium text-xs select-none cursor-pointer"
-            onClick={() => setFolderOpen(prev => ({ ...prev, [grp]: !isOpen }))}
-          >
-            <Chevron open={isOpen} size={12} lightMode={lightMode} />
-            {grp}
-          </div>
+                                if (isFolder) {
+                                  return (
+                                    <div key={grp} className="mb-4">
+                                      <div className={`flex items-center justify-between mb-2 ${lightMode ? 'text-slate-500' : 'text-blue-400'}`}>
+                                        <div
+                                          className="flex items-center gap-2 font-medium text-xs select-none cursor-pointer"
+                                          onClick={() => setFolderOpen(prev => ({ ...prev, [grp]: !isOpen }))}
+                                        >
+                                          <Chevron open={isOpen} size={12} lightMode={lightMode} />
+                                          {grp}
+                                        </div>
 
-          <div className="relative">
-            <button
-              title="Move folder"
-              onClick={() => { setMoveTargetOpenFor(grp); setMoveSourceType('folder'); }}
-              className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-            >
-              ⋯
-            </button>
-            {moveTargetOpenFor === grp && moveSourceType === 'folder' && (
-              <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                <div className="px-2 py-2 text-xs">Move folder to:</div>
-                <div className="max-h-40 overflow-auto">
-                  {Object.keys(groups).map(target => (
-                    <button
-                      key={target}
-                      onClick={() => moveFolderTo(grp, target)}
-                      className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                    >
-                      {target === '_root' ? '(root)' : target}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+                                        <div className="relative">
+                                          <button
+                                            title="Move folder"
+                                            onClick={() => { setMoveTargetOpenFor(grp); setMoveSourceType('folder'); }}
+                                            className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
+                                          >
+                                            ⋯
+                                          </button>
+                                          {moveTargetOpenFor === grp && moveSourceType === 'folder' && (
+                                            <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
+                                              <div className="px-2 py-2 text-xs">Move folder to:</div>
+                                              <div className="max-h-40 overflow-auto">
+                                                {Object.keys(groups).map(target => (
+                                                  <button
+                                                    key={target}
+                                                    onClick={() => moveFolderTo(grp, target)}
+                                                    className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
+                                                  >
+                                                    {target === '_root' ? '(root)' : target}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
 
-        {isOpen && (
-          <ul className="space-y-1">
-            {groups[grp].map((f) => (
-              <li
-                key={f.path}
-                className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
-                  activeFile?.path === f.path
-                    ? (lightMode
-                        ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'bg-blue-600/30 text-[var(--vscode-text)] border-blue-500/50')
-                    : (lightMode
-                        ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                        : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
-                }`}
-                onClick={() => setActiveFile(f)}
-              >
-                <span className="text-blue-400">
-                  {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
-                    : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
-                    : f.path.endsWith('.css') ? '🎨'
-                    : f.path.endsWith('.json') ? '📄'
-                    : '📝'}
-                </span>
-                <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
-                <div className="ml-auto relative">
-                  <button
-                    title="Move file"
-                    onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
-                    className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-                  >
-                    ⋯
-                  </button>
-                  {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
-                    <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                      <div className="px-2 py-2 text-xs">Move file to:</div>
-                      <div className="max-h-40 overflow-auto">
-                        {Object.keys(groups).map(target => (
-                          <button
-                            key={target}
-                            onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
-                            className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                          >
-                            {target === '_root' ? '(root)' : target}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
-  }
+                                      {isOpen && (
+                                        <ul className="space-y-1">
+                                          {groups[grp].map((f) => (
+                                            <li
+                                              key={f.path}
+                                              className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
+                                                activeFile?.path === f.path
+                                                  ? (lightMode
+                                                      ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                                      : 'bg-slate-800 text-[var(--vscode-text)] border-slate-600/50')
+                                                  : (lightMode
+                                                      ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                      : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
+                                              }`}
+                                              onClick={() => setActiveFile(f)}
+                                            >
+                                              <span className="text-blue-400">
+                                                {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
+                                                  : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
+                                                  : f.path.endsWith('.css') ? '🎨'
+                                                  : f.path.endsWith('.json') ? '📄'
+                                                  : '📝'}
+                                              </span>
+                                              <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
+                                              <div className="ml-auto relative">
+                                                <button
+                                                  title="Move file"
+                                                  onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
+                                                  className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
+                                                >
+                                                  ⋯
+                                                </button>
+                                                {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
+                                                  <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
+                                                    <div className="px-2 py-2 text-xs">Move file to:</div>
+                                                    <div className="max-h-40 overflow-auto">
+                                                      {Object.keys(groups).map(target => (
+                                                        <button
+                                                          key={target}
+                                                          onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
+                                                          className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
+                                                        >
+                                                          {target === '_root' ? '(root)' : target}
+                                                        </button>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  );
+                                }
 
-  // Non-folder group (root files)
-  return (
-    <div key={grp} className="mb-4">
-      <ul className="space-y-1">
-        {groups[grp].map((f) => (
-          <li
-            key={f.path}
-            className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
-              activeFile?.path === f.path
-                ? (lightMode ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-blue-600/30 text-[var(--vscode-text)] border-blue-500/50')
-                : (lightMode ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
-            }`}
-            onClick={() => setActiveFile(f)}
-          >
-            <span className="text-blue-400">
-              {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
-                : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
-                : f.path.endsWith('.css') ? '🎨'
-                : f.path.endsWith('.json') ? '📄'
-                : '📝'}
-            </span>
-            <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
-            <div className="ml-auto relative">
-              <button
-                title="Move file"
-                onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
-                className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-              >
-                ⋯
-              </button>
-              {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
-                <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                  <div className="px-2 py-2 text-xs">Move file to:</div>
-                  <div className="max-h-40 overflow-auto">
-                    {Object.keys(groups).map(target => (
-                      <button
-                        key={target}
-                        onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
-                        className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                      >
-                        {target === '_root' ? '(root)' : target}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-})}
+                                // Non-folder group (root files)
+                                return (
+                                  <div key={grp} className="mb-4">
+                                    <ul className="space-y-1">
+                                      {groups[grp].map((f) => (
+                                        <li
+                                          key={f.path}
+                                          className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
+                                            activeFile?.path === f.path
+                                              ? (lightMode ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-slate-800 text-[var(--vscode-text)] border-slate-600/50')
+                                              : (lightMode ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
+                                          }`}
+                                          onClick={() => setActiveFile(f)}
+                                        >
+                                          <span className="text-blue-400">
+                                            {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
+                                              : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
+                                              : f.path.endsWith('.css') ? '🎨'
+                                              : f.path.endsWith('.json') ? '📄'
+                                              : '📝'}
+                                          </span>
+                                          <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
+                                          <div className="ml-auto relative">
+                                            <button
+                                              title="Move file"
+                                              onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
+                                              className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
+                                            >
+                                              ⋯
+                                            </button>
+                                            {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
+                                              <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
+                                                <div className="px-2 py-2 text-xs">Move file to:</div>
+                                                <div className="max-h-40 overflow-auto">
+                                                  {Object.keys(groups).map(target => (
+                                                    <button
+                                                      key={target}
+                                                      onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
+                                                      className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
+                                                    >
+                                                      {target === '_root' ? '(root)' : target}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )
                         )}
@@ -734,10 +801,10 @@ const toggleFolder = (name: string) => {
               </div>
 
               {/* Code view + Assistant */}
-              <SplitPane split="vertical" minSize={300} defaultSize="60%" pane1Style={{ paddingRight: '1px solid #347cdbff' }} paneStyle={{ height: '100%' }}>
+              <SplitPane split="vertical" minSize={300} defaultSize="60%" pane1Style={{ borderRight: lightMode ? '1px solid #e5e7eb' : '1px solid var(--vscode-border)'}} paneStyle={{ height: '100%' }}>
                 {/* Code panel */}
                 <div className={`flex-1 h-full flex flex-col overflow-hidden ${lightMode ? 'bg-white border-r border-slate-200 shadow-sm' : 'border-r border-slate-700/40'}`} style={{ background: lightMode ? undefined : 'var(--vscode-panel)' }}>
-                  <div className={`border-b mb-0 ${lightMode ? 'bg-white/90 backdrop-blur border-slate-200' : 'border-slate-700/50'}`} style={{ borderTopLeftRadius: 6, borderTopRightRadius: 6, background: lightMode ? undefined : 'var(--vscode-panel)' }}>
+                  <div className={`mb-0 ${lightMode ? 'bg-white/90 backdrop-blur border-slate-200 border-b' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'}`}>
                     <div className="flex items-center justify-between px-4 h-11 gap-4">
                       <div className="flex overflow-x-auto flex-1">
                         {files.length === 0 ? (
@@ -746,9 +813,15 @@ const toggleFolder = (name: string) => {
                           <button
                             key={`tab-${f.path}`}
                             onClick={() => setActiveFile(f)}
-                            className={`px-5 py-2 text-sm font-medium transition-all duration-200 border-b-2 whitespace-nowrap flex items-center gap-2 ${activeFile?.path === f.path
-                              ? (lightMode ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-blue-500 text-[var(--vscode-text)] bg-blue-600/10')
-                              : (lightMode ? 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50' : 'border-transparent text-slate-400 hover:text-[var(--vscode-text)] hover:bg-slate-700/30')}`}
+                            className={`px-5 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap flex items-center gap-2 ${
+                                activeFile?.path === f.path
+                                  ? (lightMode
+                                      ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
+                                      : 'text-[var(--vscode-text)] border-0 bg-transparent')
+                                  : (lightMode
+                                      ? 'border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                      : 'text-slate-400 hover:text-[var(--vscode-text)] hover:bg-slate-700/30 border-0 bg-transparent')
+                              }`}
                           >
                             <span>
                               {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️' :
@@ -756,38 +829,92 @@ const toggleFolder = (name: string) => {
                                f.path.endsWith('.css') ? '🎨' :
                                f.path.endsWith('.json') ? '📄' : '📝'}
                             </span>
-                            {f.path}
+                            {/* Dirty dot + path */}
+                            <span className="whitespace-nowrap">
+                              {dirtyPaths.has(f.path) ? "• " : ""}
+                              {f.path}
+                            </span>
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${lightMode ? 'bg-[var(--vscode-accent)] hover:bg-[var(--vscode-accent-hover)] text-[var(--vscode-text)] shadow-sm' : 'bg-[var(--vscode-accent)] hover:bg-[var(--vscode-accent-hover)] text-[var(--vscode-text)]'}`}>Save</button>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {saveMessage && (
+                          <span
+                            className="px-3 py-1 rounded-md text-sm font-medium bg-green-600 text-white shadow-md animate-fade-in"
+                            style={{ whiteSpace: "nowrap" }}
+                          >
+                            {saveMessage}
+                          </span>
+                        )}
+
+                        {/* NEW: Unsaved changes badge */}
+                        {activeFile && dirtyPaths.has(activeFile.path) && (
+                          <span className="px-2 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                            Unsaved changes
+                          </span>
+                        )}
+
+                        <button
+                          onClick={handleSave}
+                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            lightMode
+                              ? "bg-blue-600 hover:bg-blue-700 text-white"
+                              : "bg-blue-500 hover:bg-blue-400 text-[var(--vscode-text)]"
+                          }`}
+                        >
+                          Save
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className={`flex-1 overflow-y-auto custom-scroll p-4 ${lightMode ? 'bg-white' : ''}`} style={{ borderRadius: '0', margin: '0', borderTop: 'none', minHeight: 0, paddingBottom: 96, background: lightMode ? undefined : 'var(--vscode-bg)' }}>
-                    {activeFile && typeof activeFile.path === 'string' ? (
-                      <div className={`p-4 ${lightMode ? 'bg-transparent border-0' : 'bg-transparent' }`}>
-                        <Highlight {...defaultProps} code={activeFile.content ?? ''} language={langFromPath(activeFile.path)} theme={lightMode ? githubTheme : vsDarkTheme}>
-                          {(renderProps: any) => {
-                            const { className, style, tokens, getLineProps, getTokenProps } = renderProps;
-                            return (
-                              <div className={className + ' text-sm'} style={{ ...style, background: 'transparent', color: 'var(--vscode-text)', fontSize: '13px' }}>
-                                {tokens.map((line: any[], i: number) => (
-                                  <div key={`line-${i}`} {...getLineProps({ line, key: i })} className={`flex transition-colors duration-150 ${lightMode ? 'hover:bg-blue-50' : 'hover:bg-[var(--vscode-panel)]/30'}`}>
-                                    <div className={`pr-4 select-none text-right w-12 font-mono ${lightMode ? 'text-slate-400' : 'text-slate-500'}`} style={{ lineHeight: '1.5' }}>{i + 1}</div>
-                                    <div className="flex-1" style={{ lineHeight: '1.5' }}>
-                                      {line.map((token: any, key: number) => (
-                                        <span key={`token-${i}-${key}`} {...getTokenProps({ token, key })} />
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    {activeFile ? (
+                      <div className="h-full min-h-0 overflow-hidden">
+                        <Editor
+                          value={activeFile?.content ?? ""}
+                          onValueChange={(code) => {
+                            if (!activeFile) return;
+                            setActiveFile({ ...activeFile, content: code });
+                            setDirtyPaths(prev => {
+                              const next = new Set(prev);
+                              next.add(activeFile.path);
+                              return next;
+                            });
+                          }}
+                          highlight={(code) => (
+                            <Highlight
+                              {...defaultProps}
+                              code={code}
+                              language={langFromPath(activeFile?.path ?? "")}
+                              theme={lightMode ? lightPrismNoBG : darkPrismNoBG}
+                            >
+                              {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                                <pre
+                                  className={`${className} editor-pre`}
+                                  style={{ ...style, margin: 0, background: 'transparent', backgroundColor: 'transparent' }}
+                                >
+                                  {tokens.map((line, i) => (
+                                    <div key={i} {...getLineProps({ line })}>
+                                      {line.map((token, key) => (
+                                        <span key={key} {...getTokenProps({ token })} />
                                       ))}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
+                                  ))}
+                                </pre>
+                              )}
+                            </Highlight>
+                          )}
+                          padding={12}
+                          className="w-full h-full font-mono text-sm"
+                          style={{
+                            minHeight: "100%",
+                            outline: "none",
+                            overflow: "auto",
+                            background: lightMode ? "#ffffff" : "var(--vscode-panel)",
+                            caretColor: lightMode ? "#000" : "#fff" // white caret in dark
                           }}
-                        </Highlight>
+                        />
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -806,7 +933,6 @@ const toggleFolder = (name: string) => {
                       ? 'bg-white border-l border-slate-200 shadow-sm'
                       : 'bg-[var(--vscode-bg)] border-l border-[var(--vscode-border)]'
                   }`}
-
                   style={{ position: 'relative', minHeight: 0, overflow: 'hidden', width: '100%' }}
                 >
                   <div className={`flex items-center justify-between px-4 py-3 border-b flex-shrink-0 ${lightMode ? 'bg-white border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'}`}>
@@ -815,11 +941,9 @@ const toggleFolder = (name: string) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                       </svg>
                       <span className={`text-sm font-semibold tracking-wide ${lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'}`}>AI ASSISTANT</span>
-                        {/* NEW: Mode label */}
                       <span className={`ml-3 text-xs px-2 py-0.5 rounded-full border ${lightMode ? 'text-slate-600 border-slate-300 bg-slate-100' : 'text-slate-300 border-slate-600 bg-slate-800'}`}>
                         {mode === 'agent' ? 'Agent mode' : 'Ask mode'}
                       </span>
-                    
                     </div>
                   </div>
 
@@ -834,7 +958,6 @@ const toggleFolder = (name: string) => {
                         <div className="space-y-5">
                           {messages.map((m, idx) => {
                             if (m.role === 'user') {
-                              // Right-aligned user bubble
                               return (
                                 <div key={idx} className="flex justify-end">
                                   <div
@@ -849,7 +972,6 @@ const toggleFolder = (name: string) => {
                                 </div>
                               );
                             }
-                            // Assistant: plain text + code blocks
                             return (
                               <div key={idx} className="mt-1">
                                 <AIAnswerRenderer answer={m.content} lightMode={lightMode} />
@@ -928,12 +1050,10 @@ const toggleFolder = (name: string) => {
                             value={scenario}
                             onChange={(e) => setScenario(e.target.value)}
                             onKeyDown={(e) => {
-                              // Ctrl+Enter or Cmd+Enter sends
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 if (!isRunning && scenario.trim()) sendPrompt();
                               }
-                              // plain Enter -> newline
                             }}
                           />
 
@@ -955,7 +1075,6 @@ const toggleFolder = (name: string) => {
                                 aria-label="Send"
                                 title="Send"
                               >
-                                {/* ↗️ ChatGPT-style arrow */}
                                 <svg
                                   viewBox="0 0 24 24"
                                   className="h-4 w-4"
@@ -980,7 +1099,6 @@ const toggleFolder = (name: string) => {
                                 aria-label="Stop"
                                 title="Stop"
                               >
-                                {/* solid stop square inside filled button */}
                                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
                                   <rect x="8" y="8" width="8" height="8" rx="1" ry="1" />
                                 </svg>
@@ -1000,6 +1118,14 @@ const toggleFolder = (name: string) => {
 
         {/* Global styles for this page */}
         <style jsx global>{`
+          @keyframes fade-in {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-in {
+            animation: fade-in 0.3s ease-out;
+          }
+          
           html, body, #__next {
             margin: 0;
             padding: 0;

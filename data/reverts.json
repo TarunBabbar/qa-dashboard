@@ -291,6 +291,40 @@
         }
       ],
       "message": "add 2 negative tests for http://www.saucedemo.com"
+    },
+    {
+      "id": "revert-1756816058432",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-09-02T12:27:38.432Z",
+      "filesBefore": [
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: 'tests',\n  timeout: 30 * 1000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  forbidOnly: !!process.env.CI,\n  retries: process.env.CI ? 2 : 0,\n  workers: process.env.CI ? 1 : undefined,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    baseURL: 'https://www.saucedemo.com',\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 5000,\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: 'tests',\n  timeout: 30 * 1000,\n  expect: {\n    timeout: 5000dsadsadsadas\n  },\n  fullyParallel: true,\n  forbidOnly: !!process.env.CI,\n  retries: process.env.CI ? 2 : 0,\n  workers: process.env.CI ? 1 : undefined,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    baseURL: 'https://www.saucedemo.com',\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 5000,\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        }
+      ]
+    },
+    {
+      "id": "revert-1756816070849",
+      "projectId": "proj-1756645040104",
+      "createdAt": "2025-09-02T12:27:50.849Z",
+      "filesBefore": [
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: 'tests',\n  timeout: 30 * 1000,\n  expect: {\n    timeout: 5000dsadsadsadas\n  },\n  fullyParallel: true,\n  forbidOnly: !!process.env.CI,\n  retries: process.env.CI ? 2 : 0,\n  workers: process.env.CI ? 1 : undefined,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    baseURL: 'https://www.saucedemo.com',\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 5000,\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "playwright.config.ts",
+          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: 'tests',\n  timeout: 30 * 1000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  forbidOnly: !!process.env.CI,\n  retries: process.env.CI ? 2 : 0,\n  workers: process.env.CI ? 1 : undefined,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    baseURL: 'https://www.saucedemo.com',\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 5000,\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
+        }
+      ]
     }
   ]
 }

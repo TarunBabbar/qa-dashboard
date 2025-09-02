@@ -2,49 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------- Vars (VS Code-like) ---------------- */
 :root{
-  --vscode-bg:#1e1e1e;        /* editor background */
+  --vscode-bg:#1e1e1e;        /* editor background (dark) */
   --vscode-panel:#252526;     /* side panels */
   --vscode-border:#2d2d2d;    /* borders */
-  --vscode-text:#d4d4d4;      /* default text */
+  --vscode-text:#d4d4d4;      /* default text (dark) */
   --vscode-accent:#007acc;    /* VS Code blue */
   --vscode-accent-hover:#3794ff;
 }
 
+/* ---------------- Prism (syntax highlight) ----------------
+   Important: keep backgrounds transparent so the *wrapper*
+   provides the surface color (white in light, panel in dark).
+---------------------------------------------------------------- */
 pre[class*="language-"],
 code[class*="language-"] {
   background: transparent !important;
-  color: var(--vscode-text) !important;
+  background-color: transparent !important;
+  color: inherit !important;       /* let tokens/wrapper decide */
 }
 
-.token {
-  background: transparent !important;
-}
+.token { background: transparent !important; }
 
-pre[class*="language-"] {
-  background: transparent !important;
-}
+/* DO NOT force a dark bg here; this caused light mode to go black
+pre[class*="language-"][style] { background: var(--vscode-panel) !important; }
+*/
 
-pre[class*="language-"][style] {
-  background: var(--vscode-panel) !important;
-}
-
-
-/* Prevent unexpected overflow by using border-box sizing globally */
+/* ---------------- Global sizing / base ---------------- */
 :root, html { box-sizing: border-box; }
 *, *::before, *::after { box-sizing: inherit; }
 
 @layer base {
   html, body, #__next { height: 100%; }
   body {
-    /* page background switched to light to match design screenshot */
+    /* page background is light by default */
     @apply bg-[#f6f7fb] text-slate-900 antialiased;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   }
   code, pre { @apply font-mono; }
 }
 
-/* --- IDE Page Specific Layout Fixes --- */
+/* ---------------- IDE page layout ---------------- */
 .app-root.ide-page {
   display: flex;
   flex-direction: column;
@@ -62,17 +61,23 @@ pre[class*="language-"][style] {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+/* Kill active tab underline in dark mode (tabs are styled already) */
+.ide-page button[role="tab"],
+.ide-page button[role="tab"]:focus,
+.ide-page button[role="tab"]:active {
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
 /* ensure messages aren’t hidden behind the sticky composer */
 .app-root.ide-page .ai-assistant-panel .chat-scroll-content {
-  padding-bottom: 56px; /* was 56px; bumped for the new rounded composer */
+  padding-bottom: 56px;
   padding-right: 18px;
 }
 
-/* Give space below the composer so it's not flush with OS taskbar */
-.app-root.ide-page .ai-assistant-panel {
-  padding-bottom: 40px; /* adjust 12–24px as needed */
-}
-
+/* Give space below the composer */
+.app-root.ide-page .ai-assistant-panel { padding-bottom: 40px; }
 
 .app-root.ide-page pre,
 .app-root.ide-page code {
@@ -84,12 +89,45 @@ pre[class*="language-"][style] {
 /* Slightly lighter scrollbar styling inside IDE panes (optional) */
 .app-root.ide-page .custom-scroll::-webkit-scrollbar-thumb { background: #b6c2ce; }
 
+/* ---------------- Tailwind components helpers ---------------- */
 @layer components {
   .container { @apply max-w-7xl mx-auto px-6; }
   .card { @apply bg-white p-6 rounded-lg shadow-sm; }
 }
 
-/* Fallback modern styles for dashboard semantic classes */
+/* ---------------- react-simple-code-editor hardening -----------
+   Make the inner layers fully transparent so wrapper bg shows.
+-----------------------------------------------------------------*/
+.react-simple-code-editor {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  height: 100%;
+  overflow: auto;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+.react-simple-code-editor pre,
+.react-simple-code-editor textarea,
+.editor-pre,
+.editor-pre code {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+.react-simple-code-editor textarea { outline: none !important; color: inherit !important; }
+
+.editor-pre {
+  margin: 0 !important;
+  min-height: 100% !important;
+  overflow: auto !important;
+}
+.editor {
+  outline: none;
+  min-height: 100%;
+  height: 100%;
+}
+
+/* ---------------- Dashboard fallback styles ---------------- */
 .app-root { display: flex; min-height: 100vh; background: #f6f7fb; }
 .sidebar { width: 260px; background: white; border-right: 1px solid #e6e9ef; padding: 24px; position: fixed; left: 0; top: 0; bottom: 0; }
 .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
@@ -134,33 +172,14 @@ kbd {
   padding: 1px 4px;
 }
 
-/* Kill ghost white strip in SplitPane */
-.Resizer {
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  flex: 0 0 auto !important;  /* don’t let it expand */
-}
+/* ---------------- SplitPane tweaks ---------------- */
+.Resizer { margin: 0 !important; padding: 0 !important; background: transparent !important; border: none !important; flex: 0 0 auto !important; }
+.Resizer.vertical   { width: 1px !important; background: transparent !important; cursor: col-resize; }
+.Resizer.horizontal { height: 1px !important; background: transparent !important; cursor: row-resize; }
+.Resizer[style]     { background: transparent !important; margin: 0 !important; padding: 0 !important; border: none !important; }
 
-/* Vertical resizer (between columns) */
-.Resizer.vertical {
-  width: 1px !important;      /* basically invisible */
-  background: transparent !important;
-  cursor: col-resize;
-}
+/* Subtle column border using your var */
+.ide-page .Pane { border-right: 1px solid var(--vscode-border) !important; }
 
-/* Horizontal resizer (between rows) */
-.Resizer.horizontal {
-  height: 1px !important;
-  background: transparent !important;
-  cursor: row-resize;
-}
-
-/* Make inline styles irrelevant */
-.Resizer[style] {
-  background: transparent !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-}
+/* Remove blue underline highlight from code tabs in dark mode */
+.ide-page .flex [class*="border-b-2"] { border-bottom: none !important; }
