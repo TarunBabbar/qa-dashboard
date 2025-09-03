@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
+import { backendBase } from '../lib/api';
 
 type FileEntry = { path: string; content: string };
 
@@ -39,7 +40,7 @@ export default function AIAssistantPage() {
   }, []);
 
   async function sendPrompt() {
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     const promptText = scenario;
     lastPromptRef.current = promptText;
     if (!promptText.trim()) return;
@@ -106,7 +107,7 @@ export default function AIAssistantPage() {
   }
 
   async function autoApplyAll(parsedFiles: FileEntry[], message?: string) {
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const filesRes = await fetch(`${backendBase}/api/projects/${projectId}/files`);
       let existing: FileEntry[] = [];
@@ -139,7 +140,7 @@ export default function AIAssistantPage() {
   }
 
   async function applyFileNow(f: FileEntry) {
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const checkRes = await fetch(`${backendBase}/api/projects/${projectId}/files`);
       let exists = false;
@@ -168,7 +169,7 @@ export default function AIAssistantPage() {
       alert('No revert available for this file');
       return;
     }
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const res = await fetch(`${backendBase}/api/ai/revert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revertId: info.revertId }) });
       if (res.ok) {

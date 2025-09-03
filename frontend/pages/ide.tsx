@@ -4,13 +4,12 @@ import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import React from "react";
 const SplitPane = require('react-split-pane').default;
-import { getProject } from '../lib/api';
-import { Sun, Moon } from "lucide-react";
-
+import { getProject, backendBase } from '../lib/api';
 import Editor from "react-simple-code-editor";
 import Highlight, { defaultProps, Language } from "prism-react-renderer";
 import vsDarkTheme from "prism-react-renderer/themes/vsDark";
 import githubTheme from "prism-react-renderer/themes/github";
+import { Sun, Moon, Plus, FolderPlus, RefreshCw, X, MoreVertical, MoveRight, Trash2 } from "lucide-react";
 
 // ADD these right after the imports:
 const darkPrismNoBG = {
@@ -32,6 +31,30 @@ function Chevron({ open, size = 12, lightMode }: { open: boolean, size?: number,
     </svg>
   );
 }
+
+function ActionIcon({
+  title,
+  onClick,
+  lightMode,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  lightMode: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={`action-icon ${lightMode ? "action-icon--light" : "action-icon--dark"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 
 type FileItem = { path: string; content?: string };
 
@@ -191,6 +214,85 @@ export default function IDEPage() {
   const timerRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Create dialog state
+const [createOpen, setCreateOpen] = useState(false);
+const [createKind, setCreateKind] = useState<'file'|'folder'>('file');
+const [createPath, setCreatePath] = useState('');
+const [createErr, setCreateErr] = useState<string | null>(null);
+const createInputRef = useRef<HTMLInputElement | null>(null);
+
+useEffect(() => {
+  if (createOpen) setTimeout(() => createInputRef.current?.focus(), 0);
+}, [createOpen]);
+
+const suggestedFolder = () => {
+  const base = activeFile?.path?.includes('/')
+    ? activeFile.path.split('/').slice(0, -1).join('/') + '/'
+    : '';
+  return base;
+};
+
+// Simple validators
+const validateFile = (value: string) => {
+  const v = value.trim();
+  if (!v) return 'Enter a file path.';
+  if (v.endsWith('/')) return 'This looks like a folder; remove the trailing slash.';
+  if (files.some(f => f.path === v)) return 'A file with that path already exists.';
+  return null;
+};
+const validateFolder = (value: string) => {
+  const v = value.trim().replace(/^\/+|\/+$/g, '');
+  if (!v) return 'Enter a folder path.';
+  const alreadyHasItems = files.some(f => f.path.startsWith(v + '/'));
+  if (alreadyHasItems) return 'That folder already exists.';
+  return null;
+};
+
+const openCreate = (kind: 'file'|'folder') => {
+  setCreateKind(kind);
+  setCreateErr(null);
+  setCreatePath(kind === 'file' ? suggestedFolder() : '');
+  setCreateOpen(true);
+};
+
+// Confirm action
+const confirmCreate = async () => {
+  setCreateErr(null);
+  if (createKind === 'file') {
+    const err = validateFile(createPath);
+    if (err) return setCreateErr(err);
+    const path = createPath.trim().replace(/^\/+/, '');
+    const newItem: FileItem = { path, content: '' };
+    setFiles(prev => [...prev, newItem]);
+    setActiveFile(newItem);
+    setDirtyPaths(prev => new Set(prev).add(path));
+    try {
+      if (projectId) {
+        const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(path)}`;
+        await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: '' }) });
+      }
+    } catch {}
+  } else {
+    const err = validateFolder(createPath);
+    if (err) return setCreateErr(err);
+    const folder = createPath.trim().replace(/^\/+|\/+$/g, '');
+    const keepPath = `${folder}/.gitkeep`;
+    setFiles(prev => [...prev, { path: keepPath, content: '' }]);
+    try {
+      if (projectId) {
+        const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(keepPath)}`;
+        await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: '' }) });
+      }
+    } catch {}
+  }
+  setCreateOpen(false);
+};
+
+const cancelCreate = () => {
+  setCreateOpen(false);
+};
+
+
   // Chat scroll ref
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -208,6 +310,13 @@ export default function IDEPage() {
     el.style.height = next + 'px';
   }, [scenario]);
 
+  useEffect(() => {
+  if (chatScrollRef.current) {
+    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }
+  }, [messages, aiFiles]);
+
+
   // File explorer / editor state
   const { query } = useRouter();
   const projectId = query.projectId as string | undefined;
@@ -215,6 +324,8 @@ export default function IDEPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
+  // Store full project metadata so we can pick tooling & language for AI generation
+  const [projectMeta, setProjectMeta] = useState<any | null>(null);
 
   // Move UI
   const [moveTargetOpenFor, setMoveTargetOpenFor] = useState<string | null>(null);
@@ -231,7 +342,7 @@ export default function IDEPage() {
   const handleSave = React.useCallback(async () => {
     if (!activeFile || !projectId) return;
     try {
-      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
       const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(activeFile.path)}`;
 
       await fetch(url, {
@@ -295,10 +406,13 @@ export default function IDEPage() {
           const fetchedFiles = (res.data as any).files ?? [];
           setFiles(fetchedFiles);
           setActiveFile(null);
+          // Save the loaded project metadata for later use (tooling/language)
+          setProjectMeta(res.data);
         } else {
           setProjectName(null);
           setFiles([]);
           setActiveFile(null);
+          setProjectMeta(null);
         }
       })
       .finally(() => {
@@ -312,7 +426,90 @@ export default function IDEPage() {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [messages, aiFiles]);
+  }, [messages, aiFiles, isRunning]);
+
+  // File actions popover / modals
+const [fileMenuFor, setFileMenuFor] = useState<string|null>(null);
+
+const [moveOpen, setMoveOpen] = useState(false);
+const [movingFrom, setMovingFrom] = useState<string|null>(null);
+const [moveTargetFolder, setMoveTargetFolder] = useState<string>('_root');
+const [moveNewName, setMoveNewName] = useState<string>('');
+
+const [deleteOpen, setDeleteOpen] = useState(false);
+const [deleteTarget, setDeleteTarget] = useState<string|null>(null);
+
+// Build a list of existing folders (plus root)
+const allFolders = React.useMemo(() => {
+  const s = new Set<string>(['_root']);
+  files.forEach(f => {
+    const parts = f.path.split('/'); parts.pop();
+    let acc = '';
+    parts.forEach(p => { acc = acc ? `${acc}/${p}` : p; s.add(acc); });
+  });
+  return Array.from(s).sort((a,b)=>a.localeCompare(b));
+}, [files]);
+
+const openMove = (path: string) => {
+  setFileMenuFor(null);
+  setMovingFrom(path);
+  setMoveTargetFolder(path.includes('/') ? path.split('/').slice(0,-1).join('/') : '_root');
+  setMoveNewName(path.replace(/^.*\//,''));
+  setMoveOpen(true);
+};
+
+const confirmMove = async () => {
+  if (!movingFrom) return;
+  const name = (moveNewName || movingFrom.replace(/^.*\//,'')).trim();
+  const toPath = (moveTargetFolder === '_root' ? name : `${moveTargetFolder}/${name}`).replace(/^\/+/, '');
+  if (!name || toPath === movingFrom) { setMoveOpen(false); return; }
+
+  // Local update
+  const old = files.find(f => f.path === movingFrom);
+  const content = old?.content ?? '';
+  setFiles(prev => [...prev.filter(f => f.path !== movingFrom), { path: toPath, content }]);
+  if (activeFile?.path === movingFrom) setActiveFile({ path: toPath, content });
+  setDirtyPaths(prev => {
+    const next = new Set(prev);
+    if (next.has(movingFrom)) { next.delete(movingFrom); next.add(toPath); }
+    return next;
+  });
+
+  // Persist (PUT new + DELETE old)
+  try {
+    if (projectId) {
+      const toUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(toPath)}`;
+      const fromUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(movingFrom)}`;
+      await fetch(toUrl, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ content }) });
+      await fetch(fromUrl, { method: 'DELETE' });
+    }
+  } catch {}
+  setMoveOpen(false);
+};
+
+const openDelete = (path: string) => {
+  setFileMenuFor(null);
+  setDeleteTarget(path);
+  setDeleteOpen(true);
+};
+
+const confirmDelete = async () => {
+  if (!deleteTarget) return;
+  // Local update
+  setFiles(prev => prev.filter(f => f.path !== deleteTarget));
+  if (activeFile?.path === deleteTarget) setActiveFile(null);
+  setDirtyPaths(prev => { const n = new Set(prev); n.delete(deleteTarget); return n; });
+
+  // Persist
+  try {
+    if (projectId) {
+      const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(deleteTarget)}`;
+      await fetch(url, { method: 'DELETE' });
+    }
+  } catch {}
+  setDeleteOpen(false);
+};
+
 
   function langFromPath(path: string): Language {
     if (!path) return 'javascript';
@@ -339,6 +536,29 @@ export default function IDEPage() {
       default:
         return 'javascript';
     }
+  }
+
+  // Helpers to pick the preferred tool and language from project metadata
+  function pickTool(proj: any): string {
+    if (!proj) return 'Playwright';
+    const tools: string[] = (proj.tooling ?? proj.tools ?? []) as string[];
+    if (!tools || tools.length === 0) return 'Playwright';
+    if (tools.some(t => /^selenium$/i.test(t))) return 'Selenium';
+    if (tools.some(t => /^playwright$/i.test(t))) return 'Playwright';
+    if (tools.some(t => /^cypress$/i.test(t))) return 'Cypress';
+    return tools[0];
+  }
+
+  function pickLanguage(proj: any): string {
+    if (!proj) return 'TypeScript';
+    const langs: string[] = (proj.languages ?? (proj.language ? [proj.language] : [])) as string[];
+    if (!langs || langs.length === 0) return (proj.language ? String(proj.language) : 'TypeScript');
+    if (langs.some(l => /^(c#|csharp)$/i.test(l))) return 'C#';
+    if (langs.some(l => /^java$/i.test(l))) return 'Java';
+    if (langs.some(l => /^python$/i.test(l))) return 'Python';
+    if (langs.some(l => /^typescript$/i.test(l))) return 'TypeScript';
+    if (langs.some(l => /^javascript$/i.test(l))) return 'JavaScript';
+    return langs[0];
   }
 
   // Group files
@@ -401,6 +621,115 @@ export default function IDEPage() {
     setMoveSourceType(null);
   }
 
+  // --- Create a new file (UI-first, optional persist) ---
+const createNewFile = async () => {
+  // suggest the active file’s folder if any
+  const suggestedFolder = activeFile?.path.includes("/")
+    ? activeFile.path.split("/").slice(0, -1).join("/") + "/"
+    : "";
+
+  const input = window.prompt(
+    "New file path (e.g., src/utils/helpers.ts):",
+    suggestedFolder
+  );
+  if (!input) return;
+
+  const path = input.trim().replace(/^\/+/, "");
+  if (!path || /\/$/.test(path)) {
+    alert("Please provide a valid file path (not a folder).");
+    return;
+  }
+  if (files.some((f) => f.path === path)) {
+    alert("A file with that path already exists.");
+    return;
+  }
+
+  const newItem: FileItem = { path, content: "" };
+  setFiles((prev) => [...prev, newItem]);
+  setActiveFile(newItem);
+  setDirtyPaths((prev) => {
+    const next = new Set(prev);
+    next.add(path);
+    return next;
+  });
+
+  // Try to create it on the backend (safe to ignore failures)
+  try {
+    if (projectId) {
+      const url = `${backendBase}/api/projects/${encodeURIComponent(
+        String(projectId)
+      )}/files/${encodeURIComponent(path)}`;
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "" }),
+      });
+    }
+  } catch {
+    // staying silent; file still exists in UI and marked dirty
+  }
+};
+
+// --- Create a new folder (uses a hidden keep file so it shows up in explorer) ---
+const createNewFolder = async () => {
+  const input = window.prompt(
+    "New folder (e.g., src/components or tests/e2e):",
+    ""
+  );
+  if (!input) return;
+
+  const folder = input.trim().replace(/^\/+|\/+$/g, "");
+  if (!folder) return;
+
+  // If something already exists with that prefix, we don't need a keep file
+  const alreadyHasItems = files.some((f) => f.path.startsWith(folder + "/"));
+  if (alreadyHasItems) {
+    alert("Folder already exists (it contains files).");
+    return;
+  }
+
+  const keepPath = `${folder}/.gitkeep`;
+  // prevent duplicates
+  if (files.some((f) => f.path === keepPath)) return;
+
+  const placeholder: FileItem = { path: keepPath, content: "" };
+  setFiles((prev) => [...prev, placeholder]);
+
+  try {
+    if (projectId) {
+      const url = `${backendBase}/api/projects/${encodeURIComponent(
+        String(projectId)
+      )}/files/${encodeURIComponent(keepPath)}`;
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "" }),
+      });
+    }
+  } catch {
+    // ignore; folder still appears in UI via the placeholder
+  }
+};
+
+// --- Optional: nicer refresh that re-fetches project (or keep your reload) ---
+const refreshProject = async () => {
+  if (!projectId) return;
+  setLoading(true);
+  try {
+    const res = await getProject(projectId);
+    if (res?.data) {
+      setProjectName(res.data.name || null);
+      const fetchedFiles = (res.data as any).files ?? [];
+      setFiles(fetchedFiles);
+      setActiveFile(null);
+      setProjectMeta(res.data);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   // Drag helpers
   function handleDragStart(e: React.DragEvent, fpath: string) {
     try { e.dataTransfer?.setData('text/plain', fpath); } catch {}
@@ -446,7 +775,7 @@ export default function IDEPage() {
 
     abortControllerRef.current = new AbortController();
     try {
-      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
       if (mode === 'ask') {
         const res = await fetch(`${backendBase}/api/ai/ask`, {
           method: 'POST',
@@ -465,10 +794,13 @@ export default function IDEPage() {
         setAiFiles([]);
         setMessages(prev => [...prev, { role: 'assistant', content: String(answer) }]);
       } else {
+        const toolToUse = pickTool(projectMeta);
+        const langToUse = pickLanguage(projectMeta);
+
         const res = await fetch(`${backendBase}/api/ai/generate-code`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, tool: 'Playwright', language: 'TypeScript', prompt: promptText }),
+          body: JSON.stringify({ projectId, tool: toolToUse, language: langToUse, prompt: promptText }),
           signal: abortControllerRef.current.signal,
         });
         if (!res.ok) {
@@ -523,7 +855,7 @@ export default function IDEPage() {
 
   async function autoApplyAll(parsedFiles: { path: string; content: string }[]) {
     if (!projectId) return;
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: parsedFiles, message: scenario }) });
       const json = await res.json();
@@ -532,6 +864,20 @@ export default function IDEPage() {
         const m: Record<string, { applied: boolean; revertId?: string }> = {};
         parsedFiles.forEach(f => m[f.path] = { applied: true, revertId });
         setAppliedMap(m);
+
+        // Merge applied files into current file list so explorer reflects changes immediately
+        setFiles(prev => {
+          const map = new Map<string, FileItem>();
+          prev.forEach(pf => map.set(pf.path, { ...pf }));
+          parsedFiles.forEach(f => map.set(f.path, { path: f.path, content: f.content }));
+          return Array.from(map.values());
+        });
+
+        // Optionally open the first applied file
+        if (parsedFiles.length > 0) {
+          const first = parsedFiles[0];
+          setActiveFile({ path: first.path, content: first.content });
+        }
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-apply error: ' + JSON.stringify(json) }]);
       }
@@ -542,18 +888,32 @@ export default function IDEPage() {
 
   async function applyFileNow(f: { path: string; content: string }) {
     if (!projectId) return;
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: [f], message: 'Applied single file ' + f.path }) });
       const json = await res.json();
-      if (res.ok) setAppliedMap(m => ({ ...m, [f.path]: { applied: true, revertId: json.revertId } }));
+      if (res.ok) {
+        setAppliedMap(m => ({ ...m, [f.path]: { applied: true, revertId: json.revertId } }));
+
+        // Merge/insert the applied file into the explorer list and keep content in sync
+        setFiles(prev => {
+          const found = prev.find(p => p.path === f.path);
+          if (found) {
+            return prev.map(p => p.path === f.path ? { path: f.path, content: f.content } : p);
+          }
+          return [...prev, { path: f.path, content: f.content }];
+        });
+
+        // If the active file is the same path, update its content
+        setActiveFile(prev => prev && prev.path === f.path ? { path: f.path, content: f.content } : prev);
+      }
     } catch {}
   }
 
   async function revertFile(f: { path: string; content: string }) {
     const info = appliedMap[f.path];
     if (!info?.revertId) return;
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  // use shared backendBase from lib/api
     try {
       const res = await fetch(`${backendBase}/api/ai/revert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revertId: info.revertId }) });
       if (res.ok) setAppliedMap(m => ({ ...m, [f.path]: { applied: false } }));
@@ -586,15 +946,15 @@ export default function IDEPage() {
                     <span className={`${lightMode ? 'text-slate-600' : 'text-sky-300'}`}>EXPLORER</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button title="New File" className={`p-2 rounded-md transition-colors ${lightMode ? 'hover:bg-slate-100 text-slate-500 hover:text-slate-700' : 'hover:bg-slate-800 text-sky-300 hover:text-[var(--vscode-text)]/90'}`} onClick={() => alert('New File - not implemented yet')}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-                    </button>
-                    <button title="New Folder" className={`p-2 rounded-md transition-colors ${lightMode ? 'hover:bg-slate-100 text-slate-500 hover:text-slate-700' : 'hover:bg-slate-800 text-sky-300 hover:text-[var(--vscode-text)]/90'}`} onClick={() => alert('New Folder - not implemented yet')}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                    </button>
-                    <button title="Refresh" className={`p-2 rounded-md transition-colors ${lightMode ? 'hover:bg-slate-100 text-slate-500 hover:text-slate-700' : 'hover:bg-slate-800 text-sky-300 hover:text-[var(--vscode-text)]/90'}`} onClick={() => window.location.reload()}>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    </button>
+                    <ActionIcon title="New file" onClick={() => openCreate('file')} lightMode={lightMode}>
+                      <Plus className="w-4 h-4" />
+                    </ActionIcon>
+                    <ActionIcon title="New folder" onClick={() => openCreate('folder')} lightMode={lightMode}>
+                      <FolderPlus className="w-4 h-4" />
+                    </ActionIcon>
+                    <ActionIcon title="Refresh" onClick={refreshProject} lightMode={lightMode}>
+                      <RefreshCw className="w-4 h-4" />
+                    </ActionIcon>
                   </div>
                 </div>
 
@@ -682,7 +1042,7 @@ export default function IDEPage() {
 
                                       {isOpen && (
                                         <ul className="space-y-1">
-                                          {groups[grp].map((f) => (
+                                          {groups[grp].filter((f) => !/\/\.gitkeep$|\/\.keep$/.test(f.path)).map((f) => (
                                             <li
                                               key={f.path}
                                               className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
@@ -710,7 +1070,43 @@ export default function IDEPage() {
                                                   onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
                                                   className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
                                                 >
-                                                  ⋯
+                                                  <div className="ml-auto relative" onClick={e => e.stopPropagation()}>
+                                                    <button
+                                                      title="Actions"
+                                                      onClick={() => setFileMenuFor(fileMenuFor === f.path ? null : f.path)}
+                                                      className={`h-7 w-7 grid place-items-center rounded-lg border transition
+                                                        ${lightMode ? 'border-slate-300 hover:bg-slate-100 text-slate-600'
+                                                                    : 'border-slate-600 hover:bg-slate-700/60 text-slate-200'}`}
+                                                    >
+                                                      <MoreVertical className="w-4 h-4" />
+                                                    </button>
+
+                                                    {fileMenuFor === f.path && (
+                                                      <div
+                                                        className={`absolute right-0 top-8 z-50 w-48 rounded-xl border shadow-lg overflow-hidden
+                                                          ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'}`}
+                                                      >
+                                                        <button
+                                                          onClick={() => openMove(f.path)}
+                                                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
+                                                            ${lightMode ? 'hover:bg-slate-50 text-slate-700' : 'hover:bg-slate-700/60 text-slate-200'}`}
+                                                        >
+                                                          <MoveRight className="w-4 h-4" /> Move / Rename
+                                                        </button>
+
+                                                        <div className={`${lightMode ? 'border-t border-slate-100' : 'border-t border-slate-700/60'}`} />
+
+                                                        <button
+                                                          onClick={() => openDelete(f.path)}
+                                                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
+                                                            ${lightMode ? 'hover:bg-red-50 text-red-600' : 'hover:bg-red-900/30 text-red-300'}`}
+                                                        >
+                                                          <Trash2 className="w-4 h-4" /> Delete
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                  </div>
+
                                                 </button>
                                                 {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
                                                   <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
@@ -741,7 +1137,7 @@ export default function IDEPage() {
                                 return (
                                   <div key={grp} className="mb-4">
                                     <ul className="space-y-1">
-                                      {groups[grp].map((f) => (
+                                      {groups[grp].filter((f) => !/\/\.gitkeep$|\/\.keep$/.test(f.path)).map((f) => (
                                         <li
                                           key={f.path}
                                           className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
@@ -765,7 +1161,43 @@ export default function IDEPage() {
                                               onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
                                               className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
                                             >
-                                              ⋯
+                                              <div className="ml-auto relative" onClick={e => e.stopPropagation()}>
+                                                  <button
+                                                    title="Actions"
+                                                    onClick={() => setFileMenuFor(fileMenuFor === f.path ? null : f.path)}
+                                                    className={`h-7 w-7 grid place-items-center rounded-lg border transition
+                                                      ${lightMode ? 'border-slate-300 hover:bg-slate-100 text-slate-600'
+                                                                  : 'border-slate-600 hover:bg-slate-700/60 text-slate-200'}`}
+                                                  >
+                                                    <MoreVertical className="w-4 h-4" />
+                                                  </button>
+
+                                                  {fileMenuFor === f.path && (
+                                                    <div
+                                                      className={`absolute right-0 top-8 z-50 w-48 rounded-xl border shadow-lg overflow-hidden
+                                                        ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'}`}
+                                                    >
+                                                      <button
+                                                        onClick={() => openMove(f.path)}
+                                                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
+                                                          ${lightMode ? 'hover:bg-slate-50 text-slate-700' : 'hover:bg-slate-700/60 text-slate-200'}`}
+                                                      >
+                                                        <MoveRight className="w-4 h-4" /> Move / Rename
+                                                      </button>
+
+                                                      <div className={`${lightMode ? 'border-t border-slate-100' : 'border-t border-slate-700/60'}`} />
+
+                                                      <button
+                                                        onClick={() => openDelete(f.path)}
+                                                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
+                                                          ${lightMode ? 'hover:bg-red-50 text-red-600' : 'hover:bg-red-900/30 text-red-300'}`}
+                                                      >
+                                                        <Trash2 className="w-4 h-4" /> Delete
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </div>
+
                                             </button>
                                             {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
                                               <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
@@ -870,7 +1302,7 @@ export default function IDEPage() {
 
                   <div className="flex-1 min-h-0 overflow-hidden">
                     {activeFile ? (
-                      <div className="h-full min-h-0 overflow-hidden">
+                      <div className="h-full min-h-0 overflow-hidden code-panel">
                         <Editor
                           value={activeFile?.content ?? ""}
                           onValueChange={(code) => {
@@ -892,7 +1324,7 @@ export default function IDEPage() {
                               {({ className, style, tokens, getLineProps, getTokenProps }) => (
                                 <pre
                                   className={`${className} editor-pre`}
-                                  style={{ ...style, margin: 0, background: 'transparent', backgroundColor: 'transparent' }}
+                                  style={{ ...style, margin: 0, background: 'transparent', backgroundColor: 'transparent', border: 'none',boxShadow: 'none',borderRadius: 0 }}
                                 >
                                   {tokens.map((line, i) => (
                                     <div key={i} {...getLineProps({ line })}>
@@ -912,7 +1344,10 @@ export default function IDEPage() {
                             outline: "none",
                             overflow: "auto",
                             background: lightMode ? "#ffffff" : "var(--vscode-panel)",
-                            caretColor: lightMode ? "#000" : "#fff" // white caret in dark
+                            caretColor: lightMode ? "#000" : "#fff", // white caret in dark
+                            border: 'none',
+                            boxShadow: 'none',
+                            borderRadius: 0
                           }}
                         />
                       </div>
@@ -946,7 +1381,7 @@ export default function IDEPage() {
                       </span>
                     </div>
                   </div>
-
+                  
                   <div
                     ref={chatScrollRef}
                     className={`flex-1 chat-scroll overflow-y-auto overflow-x-hidden ${lightMode ? 'bg-white' : 'bg-[var(--vscode-bg)]'}`}
@@ -978,6 +1413,20 @@ export default function IDEPage() {
                               </div>
                             );
                           })}
+                          {isRunning && (
+                                    <div className="flex mt-1">
+                                      <div
+                                        className={`typing-bubble border ${lightMode
+                                          ? 'bg-slate-100 border-slate-200 text-slate-600'
+                                          : 'bg-slate-800/70 border-slate-700/60 text-slate-300'
+                                        }`}
+                                      >
+                                        <span className="typing-dot" />
+                                        <span className="typing-dot" />
+                                        <span className="typing-dot" />
+                                      </div>
+                                    </div>
+                                  )}
                         </div>
                       ) : (
                         !isRunning && (
@@ -1114,6 +1563,166 @@ export default function IDEPage() {
               </SplitPane>
             </SplitPane>
           </div>
+          {createOpen && (
+              <div
+                className="fixed inset-0 z-[2000] bg-black/40 backdrop-blur-[2px] flex items-start justify-center p-4"
+                onClick={cancelCreate}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancelCreate();
+                  if (e.key === 'Enter') confirmCreate();
+                }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="create-title"
+              >
+                <div
+                  className={`
+                    w-full max-w-lg rounded-2xl border shadow-xl animate-fade-in
+                    ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600'}
+                  `}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className={`flex items-center justify-between px-5 py-4 border-b ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <h2 id="create-title" className={`text-sm font-semibold ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}>
+                      {createKind === 'file' ? 'Create new file' : 'Create new folder'}
+                    </h2>
+                    <button onClick={cancelCreate} className={`p-1 rounded-md ${lightMode ? 'hover:bg-slate-100' : 'hover:bg-slate-700/60'}`} aria-label="Close">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-5 pt-4 pb-2 space-y-3">
+                    <label className={`block text-xs font-medium ${lightMode ? 'text-slate-600' : 'text-slate-300'}`}>
+                      {createKind === 'file' ? 'File path' : 'Folder path'}
+                    </label>
+                    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${lightMode ? 'bg-white border-slate-300' : 'bg-slate-900/40 border-slate-700'}`}>
+                      <span className={`${lightMode ? 'text-slate-500' : 'text-slate-300'}`}>/</span>
+                      <input
+                        ref={createInputRef}
+                        value={createPath}
+                        onChange={(e) => setCreatePath(e.target.value)}
+                        placeholder={createKind === 'file' ? 'src/utils/helpers.ts' : 'src/components'}
+                        className={`flex-1 bg-transparent outline-none text-sm ${lightMode ? 'text-slate-900 placeholder-slate-400' : 'text-slate-100 placeholder-slate-400'}`}
+                      />
+                    </div>
+
+                    <p className={`text-xs ${lightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {createKind === 'file'
+                        ? 'Tip: include folders in the path, e.g. src/pages/Home.tsx'
+                        : 'Tip: nested paths allowed, e.g. src/pages/admin'}
+                    </p>
+
+                    {createErr && (
+                      <div className="text-xs text-red-600">{createErr}</div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className={`px-5 py-4 flex items-center justify-end gap-2 border-t ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <button
+                      onClick={cancelCreate}
+                      className={`h-9 px-4 rounded-lg text-sm font-medium border ${lightMode ? 'text-slate-700 border-slate-300 hover:bg-slate-100' : 'text-slate-200 border-slate-600 hover:bg-slate-700/40'}`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmCreate}
+                      className={`h-9 px-4 rounded-lg text-sm font-semibold
+                        ${lightMode
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow'
+                          : 'bg-blue-500 hover:bg-blue-400 text-[var(--vscode-text)] shadow'}`}
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {moveOpen && (
+              <div className="fixed inset-0 z-[2100] bg-black/40 backdrop-blur-[1px] flex items-start justify-center p-4"
+                  onClick={() => setMoveOpen(false)} role="dialog" aria-modal="true">
+                <div className={`${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600'}
+                                w-full max-w-xl rounded-2xl border shadow-xl animate-fade-in`}
+                    onClick={e => e.stopPropagation()}>
+                  <div className={`flex items-center justify-between px-5 py-4 border-b ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <div className="flex items-center gap-2">
+                      <MoveRight className="w-4 h-4" />
+                      <h3 className={`text-sm font-semibold ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}>Move / Rename</h3>
+                    </div>
+                    <button onClick={() => setMoveOpen(false)} className={`p-1 rounded-md ${lightMode ? 'hover:bg-slate-100' : 'hover:bg-slate-700/60'}`}><X className="w-4 h-4" /></button>
+                  </div>
+
+                  <div className="px-5 py-4 space-y-4">
+                    <div>
+                      <label className={`block text-xs mb-1 ${lightMode ? 'text-slate-600' : 'text-slate-300'}`}>Destination folder</label>
+                      <select
+                        value={moveTargetFolder}
+                        onChange={e => setMoveTargetFolder(e.target.value)}
+                        className={`${lightMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900/40 border-slate-700 text-slate-100'}
+                                  w-full text-sm rounded-xl border px-3 py-2 outline-none`}
+                      >
+                        {allFolders.map(fld => (
+                          <option key={fld} value={fld}>{fld === '_root' ? '(root)' : fld}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={`block text-xs mb-1 ${lightMode ? 'text-slate-600' : 'text-slate-300'}`}>File name</label>
+                      <input
+                        value={moveNewName}
+                        onChange={e => setMoveNewName(e.target.value)}
+                        className={`${lightMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900/40 border-slate-700 text-slate-100'}
+                                  w-full text-sm rounded-xl border px-3 py-2 outline-none`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`px-5 py-4 border-t flex items-center justify-end gap-2 ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <button onClick={() => setMoveOpen(false)}
+                      className={`h-9 px-4 rounded-lg text-sm font-medium border ${lightMode ? 'text-slate-700 border-slate-300 hover:bg-slate-100' : 'text-slate-200 border-slate-600 hover:bg-slate-700/40'}`}>
+                      Cancel
+                    </button>
+                    <button onClick={confirmMove}
+                      className={`h-9 px-4 rounded-lg text-sm font-semibold ${lightMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-400 text-[var(--vscode-text)]'}`}>
+                      Move
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {deleteOpen && (
+              <div className="fixed inset-0 z-[2100] bg-black/40 backdrop-blur-[1px] flex items-start justify-center p-4"
+                  onClick={() => setDeleteOpen(false)} role="dialog" aria-modal="true">
+                <div className={`${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600'}
+                                w-full max-w-md rounded-2xl border shadow-xl animate-fade-in`}
+                    onClick={e => e.stopPropagation()}>
+                  <div className={`px-5 py-4 border-b ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <h3 className={`text-sm font-semibold ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}>Delete file</h3>
+                  </div>
+                  <div className="px-5 py-4">
+                    <p className={`${lightMode ? 'text-slate-700' : 'text-slate-200'} text-sm`}>
+                      Are you sure you want to delete <span className="font-mono">{deleteTarget}</span>? This action can’t be undone.
+                    </p>
+                  </div>
+                  <div className={`px-5 py-4 border-t flex items-center justify-end gap-2 ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
+                    <button onClick={() => setDeleteOpen(false)}
+                      className={`h-9 px-4 rounded-lg text-sm font-medium border ${lightMode ? 'text-slate-700 border-slate-300 hover:bg-slate-100' : 'text-slate-200 border-slate-600 hover:bg-slate-700/40'}`}>
+                      Cancel
+                    </button>
+                    <button onClick={confirmDelete}
+                      className={`h-9 px-4 rounded-lg text-sm font-semibold ${lightMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-400 text-[var(--vscode-text)]'}`}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
         </main>
 
         {/* Global styles for this page */}
@@ -1175,6 +1784,33 @@ export default function IDEPage() {
             background: rgba(0,0,0,0.5); color: #fff; border: none; cursor: pointer; opacity: 0.9;
           }
           .ai-assistant-panel .code-copy-button:hover { opacity: 1; transform: translateY(-1px); }
+
+          /* Indeterminate progress bar */
+            
+            /* Assistant typing bubble (three bouncing dots) */
+            .typing-bubble {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 8px 10px;
+              border-radius: 14px;
+            }
+            .typing-dot {
+              width: 6px;
+              height: 6px;
+              border-radius: 9999px;
+              background: currentColor;
+              opacity: 0.6;
+              animation: typing 1s ease-in-out infinite;
+            }
+            .typing-dot:nth-child(2) { animation-delay: .15s; }
+            .typing-dot:nth-child(3) { animation-delay: .30s; }
+
+            @keyframes typing {
+              0%, 60%, 100% { transform: translateY(0); opacity: .5; }
+              30% { transform: translateY(-3px); opacity: 1; }
+            }
+
         `}</style>
       </>
   );

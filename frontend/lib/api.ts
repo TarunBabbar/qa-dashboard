@@ -91,7 +91,7 @@ export async function getPassRateTrend(period = '30d'): Promise<ApiResponse<Pass
 export { apiFetch };
 
 // AI assistant helpers
-const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+export const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 export async function generateAICode(projectId: string, tool: string, language: string, prompt: string) {
   const res = await fetch(`${backendBase}/api/ai/generate-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, tool, language, prompt }) });

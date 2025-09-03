@@ -183,3 +183,124 @@ kbd {
 
 /* Remove blue underline highlight from code tabs in dark mode */
 .ide-page .flex [class*="border-b-2"] { border-bottom: none !important; }
+
+
+/* Indeterminate progress bar */
+@keyframes indeterminate {
+  0%   { transform: translateX(-120%); }
+  50%  { transform: translateX(30%); }
+  100% { transform: translateX(120%); }
+}
+.animate-indeterminate {
+  animation: indeterminate 1.1s cubic-bezier(.4,0,.2,1) infinite;
+}
+
+/* Assistant typing bubble (three bouncing dots) */
+.typing-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.6;
+  animation: typing 1s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: .15s; }
+.typing-dot:nth-child(3) { animation-delay: .30s; }
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* --- Remove any borders/outlines from react-simple-code-editor --- */
+.react-simple-code-editor,
+.react-simple-code-editor pre,
+.react-simple-code-editor textarea {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important; /* optional: square corners */
+  background-clip: padding-box;
+}
+
+/* Hard-kill any focus outline / ring / shadow in the code editor area */
+.code-panel,
+.code-panel:focus,
+.code-panel:focus-within,
+.code-panel *:focus,
+.code-panel *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* react-simple-code-editor internals */
+.code-panel .react-simple-code-editor,
+.code-panel .react-simple-code-editor:focus,
+.code-panel .react-simple-code-editor:focus-within,
+.code-panel .react-simple-code-editor pre,
+.code-panel .react-simple-code-editor textarea,
+.code-panel .react-simple-code-editor textarea:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background-clip: padding-box;
+}
+
+/* Some browsers apply an inner focus border to textareas */
+.code-panel textarea::-moz-focus-inner {
+  border: 0 !important;
+}
+
+/* Safety: if any Tailwind ring utilities leaked in via parent */
+.code-panel [class*="ring-"],
+.code-panel [class*="focus:ring-"],
+.code-panel [class*="focus-within:ring-"] {
+  --tw-ring-color: transparent !important;
+  --tw-ring-offset-width: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Modern, subtle icon button */
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+}
+
+.action-icon--light {
+  background: #ffffff;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+.action-icon--light:hover {
+  background: #f8fafc;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.06);
+  transform: translateY(-1px);
+}
+
+.action-icon--dark {
+  background: rgba(30, 41, 59, 0.55);
+  color: #cbd5e1;
+  border-color: #475569;
+}
+.action-icon--dark:hover {
+  background: rgba(30, 41, 59, 0.75);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transform: translateY(-1px);
+}
+
+.action-icon:active { transform: translateY(0); }
+.action-icon:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.35); }
