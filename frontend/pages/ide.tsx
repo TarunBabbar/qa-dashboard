@@ -1,3 +1,4 @@
+'use client'
 import Head from 'next/head';
 import Header from '../components/Header';
 import { useRouter } from 'next/router';
@@ -10,6 +11,23 @@ import Highlight, { defaultProps, Language } from "prism-react-renderer";
 import vsDarkTheme from "prism-react-renderer/themes/vsDark";
 import githubTheme from "prism-react-renderer/themes/github";
 import { Sun, Moon, Plus, FolderPlus, RefreshCw, X, MoreVertical, MoveRight, Trash2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
+import Prism from "prism-react-renderer/prism";
+(globalThis as any).Prism = Prism;
+require("prismjs/components/prism-csharp");
+require("prismjs/components/prism-java");
+require("prismjs/components/prism-markup");     // html/markup
+require("prismjs/components/prism-javascript");
+require("prismjs/components/prism-typescript");
+require("prismjs/components/prism-jsx");
+require("prismjs/components/prism-tsx");
+require("prismjs/components/prism-python");
+require("prismjs/components/prism-json");
+require("prismjs/components/prism-markdown");
+require("prismjs/components/prism-css");
+
 
 // ADD these right after the imports:
 const darkPrismNoBG = {
@@ -77,123 +95,404 @@ function parseFencedCodeBlocks(text: string) {
   return parts;
 }
 
-function AIAnswerRenderer({ answer, lightMode }: { answer: string; lightMode: boolean }) {
-  // Strip visible "You:" / "AI:" prefixes if they exist in raw text
-  const cleaned = (answer || '')
-    .replace(/^You:\s*/i, '')
-    .replace(/\n?^AI:\s*/i, '');
+function normalizeLang(lang?: string): Language {
+  if (!lang) return 'javascript' as Language;
+  const L = lang.toLowerCase();
+  if (L === 'cs' || L === 'c#') return 'csharp' as Language;
+  if (L === 'ts' || L === 'tsx') return 'typescript' as Language;
+  if (L === 'js' || L === 'jsx') return 'javascript' as Language;
+  if (L === 'html') return 'markup' as Language;
+  return (L as Language);
+}
 
-  const parts = parseFencedCodeBlocks(cleaned);
-
-  function detectLanguage(code: string): Language {
-    const s = code.slice(0, 400).toLowerCase();
-    if (/^\s*<!doctype|<html|<\w+/.test(code)) return 'markup';
-    if (/\bdef\s+\w+\(|import\s+selenium|from\s+selenium/.test(s)) return 'python';
-    if (/console\.log\(|\bfunction\s+\w+\(|=>|\bconst\s+\w+|document\.|window\./.test(s)) return 'javascript';
-    if (/import\s+React|jsx|tsx|class\s+\w+\s+extends\s+React/.test(code)) return 'typescript';
-    if (/package.json|npm install|require\(|module\.exports/.test(s)) return 'javascript';
-    if (/public static void main|System\.out\.println|import java\./.test(s)) return 'markup';
-    if (/using\s+System;|namespace\s+\w+;/.test(s)) return 'markup';
-    if (/SELECT\s+\*|INSERT INTO|CREATE TABLE/.test(s)) return 'sql';
-    return 'javascript';
-  }
-
-  function renderRichText(content: string, key: number) {
-    const paragraphs = content.replace(/\r/g, '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
-    return paragraphs.map((p, idx) => {
-      const lines = p.split(/\n/).map(l => l.trim()).filter(Boolean);
-
-      // Ordered list
-      if (lines.length > 1 && lines.every(l => /^\d+\.\s+/.test(l))) {
-        const items = lines.map(l => l.replace(/^\d+\.\s*/, ''));
-        return (
-          <ol key={`ol-${key}-${idx}`} className={`list-decimal ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-            {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
-          </ol>
-        );
-      }
-
-      // Unordered list
-      if (lines.length > 1 && lines.every(l => /^[-*+]\s+/.test(l))) {
-        const items = lines.map(l => l.replace(/^[-*+]\s*/, ''));
-        return (
-          <ul key={`ul-${key}-${idx}`} className={`list-disc ml-5 text-sm leading-relaxed ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-            {items.map((it, i2) => <li key={i2} className="mb-1">{it}</li>)}
-          </ul>
-        );
-      }
-
-      // Paragraph
-      return (
-        <p key={`p-${key}-${idx}`} className={`text-sm leading-relaxed whitespace-pre-wrap ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-          {p}
-        </p>
-      );
-    });
-  }
-
-  if (!parts || parts.length === 0)
-    return <div className={`text-sm ${lightMode ? 'text-slate-800' : 'text-slate-200'}`}>{answer}</div>;
+function CodeBlock({
+  code,
+  lang,
+  lightMode,
+}: {
+  code: string;
+  lang?: string;
+  lightMode: boolean;
+}) {
+  const themed = lightMode ? lightPrismNoBG : darkPrismNoBG;
+  const blockBg   = "transparent";
+  const blockBrdr = lightMode ? "var(--code-border-light)": "var(--code-border-dark)";
+  const language  = normalizeLang(lang);
+  const [copied, setCopied] = React.useState(false);
+  const doCopy = async () => {
+    try { await navigator.clipboard.writeText(code); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = code; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 1200);
+  };
 
   return (
-    <div className="space-y-3">
-      {parts.map((p, i) => {
-        if (p.type === 'text') {
-          return (
-            <div
-              key={i}
-              className={`text-sm ${lightMode ? 'text-slate-800' : 'text-slate-200'}`}
-              style={{ lineHeight: 1.6, wordWrap: 'break-word', overflowWrap: 'break-word' }}
-            >
-              {renderRichText(p.content || '', i)}
-            </div>
-          );
-        }
-        const lang = (p.lang as Language) || detectLanguage(p.content || '');
-        return (
-          <div
-            key={i}
-            className={`rounded-lg overflow-hidden ${lightMode ? 'bg-slate-50 border border-slate-200' : 'bg-slate-800 border border-slate-700'}`}
-            style={{ position: 'relative', maxWidth: '100%' }}
-          >
-            <button
-              onClick={async () => { try { await navigator.clipboard.writeText(p.content || ''); } catch { const ta = document.createElement('textarea'); ta.value = p.content || ''; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } }}
-              className="code-copy-button"
-              title="Copy code"
-            >Copy</button>
-            <Highlight {...defaultProps} code={p.content || ''} language={lang} theme={lightMode ? githubTheme : vsDarkTheme}>
-              {(renderProps: any) => {
-                const { className, style, tokens, getLineProps, getTokenProps } = renderProps;
-                return (
-                  <pre
-                    className={className + ' text-sm p-3 overflow-auto'}
-                    style={{ ...style, margin: 0, background: 'transparent', color: 'var(--vscode-text)', fontSize: 12, paddingTop: 16, maxWidth: '100%' }}
-                  >
-                    {tokens.map((line: any[], i2: number) => (
-                      <div key={`c-${i}-${i2}`} {...getLineProps({ line, key: i2 })} style={{ display: 'table-row' }}>
-                        <div style={{ display: 'table-cell', textAlign: 'right', paddingRight: 12, userSelect: 'none', opacity: 0.5, width: 40, fontFamily: 'monospace', fontSize: 11 }}>{i2 + 1}</div>
-                        <div style={{ display: 'table-cell' }}>
-                          {line.map((token: any, key: number) => (
-                            <span key={`token-${i}-${i2}-${key}`} {...getTokenProps({ token, key })} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </pre>
-                );
-              }}
-            </Highlight>
-          </div>
-        );
-      })}
+    <div
+      style={{ position:'relative', background:blockBg, border:`1px solid ${blockBrdr}`, borderRadius:8, overflow:'hidden' }}
+    >
+      <button
+        onClick={doCopy}
+        className="code-copy-button"
+        data-copied={copied ? 'true' : 'false'}
+        title={copied ? 'Copied' : 'Copy code'}
+      >
+        {copied ? 'Copied ✓' : 'Copy'}
+      </button>
+
+      <Highlight {...defaultProps} code={code} language={language} theme={themed}>
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre className={className + " text-sm p-3 overflow-auto"} style={{ ...style, margin:0, background:'transparent' }}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })} style={{ display:'table-row' }}>
+                <div style={{ display:'table-cell', textAlign:'right', paddingRight:12, userSelect:'none', opacity:.5, width:40, fontFamily:'monospace', fontSize:11 }}>
+                  {i + 1}
+                </div>
+                <div style={{ display:'table-cell' }}>
+                  {line.map((token, key) => <span key={key} {...getTokenProps({ token })} />)}
+                </div>
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
     </div>
   );
 }
 
-// ---------- Page ----------
+ function pickLanguage(proj: any): string {
+    if (!proj) return 'TypeScript';
+    const langs: string[] = (proj.languages ?? (proj.language ? [proj.language] : [])) as string[];
+    if (!langs || langs.length === 0) return (proj.language ? String(proj.language) : 'TypeScript');
+    if (langs.some(l => /^(c#|csharp)$/i.test(l))) return 'C#';
+    if (langs.some(l => /^java$/i.test(l))) return 'Java';
+    if (langs.some(l => /^python$/i.test(l))) return 'Python';
+    if (langs.some(l => /^typescript$/i.test(l))) return 'TypeScript';
+    if (langs.some(l => /^javascript$/i.test(l))) return 'JavaScript';
+    return langs[0];
+  }
+
+function defaultPrismLangFromMeta(meta: any): Language {
+  const L = (pickLanguage(meta) || '').toLowerCase();
+  if (/^c#|csharp|cs$/.test(L)) return 'csharp' as Language;
+  if (L === 'typescript') return 'typescript' as Language;
+  if (L === 'javascript') return 'javascript' as Language;
+  if (L === 'python') return 'python' as Language;
+  // map Java to Prism's "markup" if you want, or fall back
+  if (L === 'java') return 'java' as Language;
+  return 'javascript' as Language;
+}
+
+
+function AIAnswerRenderer({ answer, lightMode, defaultLang }: { answer: string; lightMode: boolean; defaultLang: Language; }) {
+  const themed = lightMode ? githubTheme : vsDarkTheme;
+
+  // 👇 Type the components so TS knows about `inline`
+  const mdComponents: Components = {
+    h1: ({node, ...props}) => <h1 className={`text-xl font-bold mt-2 mb-2 ${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
+    h2: ({node, ...props}) => <h2 className={`text-lg font-semibold mt-2 mb-2 ${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
+    p:  ({node, ...props}) => <p  className={`text-sm leading-relaxed mb-2 ${lightMode ? 'text-slate-800' : 'text-slate-200'}`} {...props} />,
+    ul: ({node, ...props}) => <ul className={`list-disc ml-5 text-sm mb-2 ${lightMode ? 'text-slate-700' : 'text-slate-200'}`} {...props} />,
+    ol: ({node, ...props}) => <ol className={`list-decimal ml-5 text-sm mb-2 ${lightMode ? 'text-slate-700' : 'text-slate-200'}`} {...props} />,
+    li: ({node, ...props}) => <li className="mb-1" {...props} />,
+    strong: ({node, ...props}) => <strong className={`${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
+
+    // <-- THIS is the one that needs `inline`
+    code({ inline, className, children } : any) {
+  const match = /language-([\w#+-]+)/.exec(className || "");
+  const lang = match?.[1];
+  const codeStr = String(children ?? "");
+
+  if (inline) {
+    return (
+      <code
+        className={`${className ?? ""} px-1 py-0.5 rounded ${lightMode ? 'inlinecode--light' : 'inlinecode--dark'}`}
+      >
+        {children}
+      </code>
+    );
+  }
+  const finalLang = (lang as string) || defaultLang;
+  return <CodeBlock code={codeStr} lang={finalLang} lightMode={lightMode} />;
+},};
+
+  return (
+    <div className="assistant-msg mt-3">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+        {answer || ""}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sanitizeAnswer(raw: string, lastUserPrompt: string) {
+  if (!raw) return "";
+
+  let s = raw.replace(/\r/g, "");
+
+  // Remove any SSE "data:" prefixes just in case
+  s = s.replace(/^data:\s?/gm, "");
+
+  // Remove chat-style labels
+  s = s.replace(/^(You|User|AI|Assistant)\s*:\s*/i, "");
+
+  // Drop an echoed copy of the question (with or without "Question:" prefix)
+  const variants = [
+    lastUserPrompt.trim(),
+    `Question: ${lastUserPrompt.trim()}`,
+    `Q: ${lastUserPrompt.trim()}`
+  ];
+  for (const v of variants) {
+    const rx = new RegExp(`^\\s*${escapeRegExp(v)}\\s*`, "i");
+    if (rx.test(s)) {
+      s = s.replace(rx, "");
+      break;
+    }
+  }
+
+  // Ensure we start on a new line for visible spacing under the user bubble
+  if (!/^\n/.test(s)) s = "\n" + s;
+
+  return s;
+}
+
+type TreeNode =
+  | { type: 'folder'; name: string; path: string; children: TreeNode[] }
+  | { type: 'file';   name: string; path: string };
+
+function buildTree(items: FileItem[]): TreeNode {
+  const root: TreeNode = { type: 'folder', name: '_root', path: '', children: [] };
+
+  for (const f of items) {
+    const parts = f.path.split('/').filter(Boolean);
+    let cur = root;
+    let acc = '';
+
+    parts.forEach((part, i) => {
+      acc = acc ? `${acc}/${part}` : part;
+      const isFile = i === parts.length - 1;
+
+      if (isFile) {
+        // file
+        cur.children.push({ type: 'file', name: part, path: acc });
+      } else {
+        // folder
+        let next = cur.children.find(
+          (n) => n.type === 'folder' && n.name === part
+        ) as Extract<TreeNode, { type: 'folder' }> | undefined;
+
+        if (!next) {
+          next = { type: 'folder', name: part, path: acc, children: [] };
+          cur.children.push(next);
+        }
+        cur = next;
+      }
+    });
+  }
+
+  // sort folders first, then files, alpha
+  const sortNode = (node: TreeNode) => {
+    if (node.type === 'folder') {
+      node.children.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      node.children.forEach(sortNode);
+    }
+  };
+  sortNode(root);
+  return root;
+}
+
+function FolderView({
+  node,
+  lightMode,
+  folderOpen,
+  setFolderOpen,
+  onSelectFile,
+  activeFilePath,
+  // context menu + rename come from IDEPage state
+  setCtxMenu,
+  renaming,
+  setRenaming,
+  onCommitRename,
+  // drag/drop handlers are provided by IDEPage
+  onFileDragStart,
+  onFileDragEnd,
+  onFolderDragOver,
+  onFolderDragLeave,
+  onFolderDrop,
+}: {
+  node: Extract<TreeNode, { type: 'folder' }>;
+  lightMode: boolean;
+  folderOpen: Record<string, boolean>;
+  setFolderOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  onSelectFile: (path: string) => void;
+  activeFilePath?: string;
+
+  setCtxMenu: React.Dispatch<
+    React.SetStateAction<null | { type: 'file' | 'folder'; path: string; x: number; y: number }>
+  >;
+  renaming: null | { path: string; value: string };
+  setRenaming: React.Dispatch<React.SetStateAction<null | { path: string; value: string }>>;
+  onCommitRename: () => void;
+
+  onFileDragStart: (e: React.DragEvent, path: string) => void;
+  onFileDragEnd: () => void;
+  onFolderDragOver: (e: React.DragEvent, folderKey: string) => void;
+  onFolderDragLeave: () => void;
+  onFolderDrop: (e: React.DragEvent, folderKey: string) => void;
+}) {
+  const isRoot = node.path === '';
+  const folderKey = node.path || '_root';
+  const isOpen = folderOpen[folderKey] ?? true;
+
+  return (
+    <div className={isRoot ? '' : 'mb-2'}>
+      {/* ===== FOLDER HEADER (click to toggle, right-click for menu, drop target) ===== */}
+      {!isRoot && (
+        <div
+          className={`vscode-folder ${lightMode ? 'vscode-folder--light' : 'vscode-folder--dark'}`}
+          onClick={() =>
+            setFolderOpen(prev => ({ ...prev, [folderKey]: !isOpen }))
+          }
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setCtxMenu({ type: 'folder', path: folderKey, x: e.clientX, y: e.clientY });
+          }}
+          onDragOver={(e) => onFolderDragOver(e, folderKey)}
+          onDragLeave={onFolderDragLeave}
+          onDrop={(e) => { e.stopPropagation(); onFolderDrop(e, folderKey); }}
+          
+          draggable
+          onDragStart={(e) => {
+            e.stopPropagation();
+            try {
+              if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/x-folder', folderKey);
+              }
+            } catch {}
+            // visually you can also set a class here if you want
+          }}
+          onDragEnd={onFileDragEnd}
+
+        >
+          <Chevron open={isOpen} size={12} lightMode={lightMode} />
+              {renaming?.path === folderKey ? (
+                <input
+                  autoFocus
+                  value={renaming.value}
+                  onChange={(e) => setRenaming({ path: folderKey, value: e.target.value })}
+                  onBlur={onCommitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onCommitRename();
+                    if (e.key === 'Escape') setRenaming(null);
+                  }}
+                  className={`vscode-rename ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span>{node.name}</span>
+              )}
+
+        </div>
+      )}
+
+      {/* ===== CHILDREN ===== */}
+      {isOpen && (
+        <div className={isRoot ? '' : 'ml-4 mt-1'}>
+          {node.children.map(child =>
+            child.type === 'folder' ? (
+              <FolderView
+                key={child.path}
+                node={child}
+                lightMode={lightMode}
+                folderOpen={folderOpen}
+                setFolderOpen={setFolderOpen}
+                onSelectFile={onSelectFile}
+                activeFilePath={activeFilePath}
+                setCtxMenu={setCtxMenu}
+                renaming={renaming}
+                setRenaming={setRenaming}
+                onCommitRename={onCommitRename}
+                onFileDragStart={onFileDragStart}
+                onFileDragEnd={onFileDragEnd}
+                onFolderDragOver={onFolderDragOver}
+                onFolderDragLeave={onFolderDragLeave}
+                onFolderDrop={onFolderDrop}
+              />
+            ) : (
+              // ===== FILE ROW (compact, VS Code-like) =====
+              <div
+                key={child.path}
+                className={`vscode-row ${
+                  activeFilePath === child.path
+                    ? (lightMode ? 'vscode-row--active-light' : 'vscode-row--active-dark')
+                    : (lightMode ? 'vscode-row--light' : 'vscode-row--dark')
+                }`}
+                title={child.path}
+                onClick={() => onSelectFile(child.path)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setCtxMenu({ type: 'file', path: child.path, x: e.clientX, y: e.clientY });
+                }}
+                draggable
+                onDragStart={(e) => onFileDragStart(e, child.path)}
+                onDragEnd={onFileDragEnd}
+              >
+                <span className="vscode-row__icon">📝</span>
+
+                {/* Inline rename for file name */}
+                {renaming?.path === child.path ? (
+                  <input
+                    autoFocus
+                    value={renaming.value}
+                    onChange={(e) => setRenaming({ path: child.path, value: e.target.value })}
+                    onBlur={onCommitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') onCommitRename();
+                      if (e.key === 'Escape') setRenaming(null);
+                    }}
+                    className={`vscode-rename ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}
+                  />
+                ) : (
+                  <span className="vscode-row__label">{child.name}</span>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function IDEPage() {
+
+// Store full project metadata so we can pick tooling & language for AI generation
+const [projectMeta, setProjectMeta] = useState<any | null>(null);
+const fallbackLang = defaultPrismLangFromMeta(projectMeta);
+
+
+  // streaming brief + coordination
+  const briefAbortRef = useRef<AbortController | null>(null);
+  const [briefFinished, setBriefFinished] = useState(false);
+  const [codeReady, setCodeReady] = useState(false);
+  const streamMsgIndexRef = useRef<number | null>(null);
+  const lastBriefRef = useRef<string>("");               // <-- add this
+  const statusMsgIndexRef = useRef<number | null>(null);
+
+
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
 
   // toggle helper
@@ -220,6 +519,132 @@ const [createKind, setCreateKind] = useState<'file'|'folder'>('file');
 const [createPath, setCreatePath] = useState('');
 const [createErr, setCreateErr] = useState<string | null>(null);
 const createInputRef = useRef<HTMLInputElement | null>(null);
+// VS Code–like context menu + inline rename
+const [ctxMenu, setCtxMenu] = useState<null | {type:'file'|'folder', path:string, x:number, y:number}>(null);
+const [renaming, setRenaming] = useState<null | {path:string, value:string}>(null);
+
+// NEW: ref to the menu box so outside clicks don’t immediately close before button handlers run
+const ctxMenuBoxRef = useRef<HTMLDivElement | null>(null);
+
+// REPLACED: close-on-mousedown with a safer pointerdown that ignores presses inside the menu
+useEffect(() => {
+  function onPointerDown(e: MouseEvent) {
+    const el = ctxMenuBoxRef.current;
+    if (el && el.contains(e.target as Node)) return; // ignore clicks inside menu
+    setCtxMenu(null);
+  }
+  function onEsc(e: KeyboardEvent) {
+    if (e.key === 'Escape') { setCtxMenu(null); setRenaming(null); }
+  }
+  document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('keydown', onEsc);
+  return () => {
+    document.removeEventListener('pointerdown', onPointerDown, true);
+    document.removeEventListener('keydown', onEsc);
+  };
+}, [setCtxMenu, setRenaming]);
+
+// Is there anything under "folder/"?
+const isFolderPath = (p: string) => files.some(f => f.path === `${p}/.gitkeep` || f.path.startsWith(`${p}/`));
+
+// Given "a/b/c.txt" -> "a/b" ; given "a" -> "_root"
+const parentOf = (p: string) => p.includes('/') ? p.split('/').slice(0,-1).join('/') : '_root';
+
+
+const startRename = (path: string) => {
+  setCtxMenu(null);
+  setRenaming({ path, value: path.replace(/^.*\//, '') });
+};
+
+const commitRename = async () => {
+  if (!renaming) return;
+
+  const oldPath = renaming.path;                               // may be a FILE path or a FOLDER key
+  const newName = renaming.value.trim();
+  setRenaming(null);
+
+  // no change?
+  const oldLeaf = oldPath.replace(/^.*\//, '');
+  if (!newName || newName === oldLeaf) return;
+
+  // ---- CASE 1: file rename -------------------------------------------------
+  const existingFile = files.find(f => f.path === oldPath);
+  if (existingFile) {
+    const parent = parentOf(oldPath);
+    const toPath = parent === '_root' ? newName : `${parent}/${newName}`;
+
+    // local update
+    const content = existingFile.content ?? '';
+    setFiles(prev => [...prev.filter(f => f.path !== oldPath), { path: toPath, content }]);
+    if (activeFile?.path === oldPath) setActiveFile({ path: toPath, content });
+
+    // persist to backend
+    try {
+      if (projectId) {
+        const toUrl   = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(toPath)}`;
+        const fromUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(oldPath)}`;
+        await fetch(toUrl, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) });
+        await fetch(fromUrl, { method:'DELETE' });
+      }
+    } catch {}
+    return;
+  }
+
+  // ---- CASE 2: folder rename ----------------------------------------------
+  // `oldPath` here is the folder key used in FolderView (e.g., "src/pages")
+  if (!isFolderPath(oldPath)) return;
+
+  const parent = parentOf(oldPath);
+  const newFolderKey = parent === '_root' ? newName : `${parent}/${newName}`;
+
+  // Update every file under old folder -> new folder
+  const prefix = `${oldPath}/`;
+  const keepOld = `${oldPath}/.gitkeep`;
+  const keepNew = `${newFolderKey}/.gitkeep`;
+
+  const updates: { from: string; to: string; content: string }[] = [];
+  setFiles(prev => {
+    const next: FileItem[] = [];
+    for (const f of prev) {
+      if (f.path === keepOld) {
+        // move the keep file as well
+        updates.push({ from: keepOld, to: keepNew, content: f.content ?? '' });
+        next.push({ path: keepNew, content: f.content ?? '' });
+        continue;
+      }
+      if (f.path.startsWith(prefix)) {
+        const suffix = f.path.substring(prefix.length); // "x/y.ts"
+        const to = `${newFolderKey}/${suffix}`;
+        updates.push({ from: f.path, to, content: f.content ?? '' });
+        next.push({ path: to, content: f.content ?? '' });
+        // update active tab if needed
+        if (activeFile?.path === f.path) setActiveFile({ path: to, content: f.content ?? '' });
+      } else {
+        next.push(f);
+      }
+    }
+    return next;
+  });
+
+  // persist: PUT each new file then DELETE each old
+  try {
+    if (projectId) {
+      for (const u of updates) {
+        const putUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(u.to)}`;
+        const delUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(u.from)}`;
+        await fetch(putUrl, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: u.content }) });
+        await fetch(delUrl, { method:'DELETE' });
+      }
+    }
+  } catch {}
+};
+
+const deletePath = (path: string) => {
+  setCtxMenu(null);
+  setDeleteTarget(path);
+  setDeleteOpen(true);
+};
+
 
 useEffect(() => {
   if (createOpen) setTimeout(() => createInputRef.current?.focus(), 0);
@@ -325,7 +750,7 @@ const cancelCreate = () => {
   const [loading, setLoading] = useState(false);
   const [activeFile, setActiveFile] = useState<FileItem | null>(null);
   // Store full project metadata so we can pick tooling & language for AI generation
-  const [projectMeta, setProjectMeta] = useState<any | null>(null);
+ 
 
   // Move UI
   const [moveTargetOpenFor, setMoveTargetOpenFor] = useState<string | null>(null);
@@ -369,17 +794,148 @@ const cancelCreate = () => {
     }
   }, [activeFile, projectId, setFiles]);
 
+
+function safeIdent(name?: string) {
+  const base = (name || 'MyProject').trim();
+  return base
+    .replace(/[^A-Za-z0-9_]+/g, "_") // no 'u' flag, no \p{…}
+    .replace(/^(\d)/, "_$1");        // no leading digit
+}
+
+  function slowTypeIntoNewAssistantMessage(text: string, durationMs = 30000) {
+  let idx = -1;
+  setMessages(prev => {
+    idx = prev.length;
+    return [...prev, { role: 'assistant', content: '' }];
+  });
+
+  const start = performance.now();
+  const total = text.length || 1;
+
+  function step(now: number) {
+    const elapsed = now - start;
+    const progress = Math.min(1, elapsed / durationMs);
+    const chars = Math.max(1, Math.floor(total * progress));
+    const slice = text.slice(0, chars);
+
+    setMessages(prev => {
+      if (!prev[idx]) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], content: slice };
+      return next;
+    });
+
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+
+  async function streamAgentBrief(projectId: string, promptText: string) {
+  setBriefFinished(false);
+
+  // Insert a blank assistant message and capture its index synchronously
+  let insertIndex = -1;
+  setMessages(prev => {
+    insertIndex = prev.length;
+    streamMsgIndexRef.current = insertIndex;
+    return [...prev, { role: "assistant", content: "\n" }];
+  });
+
+  const bac = new AbortController();
+  briefAbortRef.current = bac;
+
+  const res = await fetch(`${backendBase}/api/ai/agent-brief`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId, prompt: promptText }),
+    signal: bac.signal,
+  });
+
+  const reader = res.body?.getReader();
+  if (!reader) { setBriefFinished(true); return; }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+
+    for (const p of parts) {
+      const t = p.replace(/^data:/, "");
+      if (t === "[DONE]") continue;
+
+      const i = streamMsgIndexRef.current ?? insertIndex;
+      setMessages(prev => {
+        if (!prev[i]) return prev;
+        const next = [...prev];
+        next[i] = { ...next[i], content: next[i].content + t };
+        return next;
+      });
+    }
+  }
+
+  // Final sanitize and store the brief into a ref for the next step
+  {
+    const i = streamMsgIndexRef.current ?? insertIndex;
+    let finalBriefLocal = "";
+    setMessages(prev => {
+      if (!prev[i]) return prev;
+      const next = [...prev];
+      const sanitized = sanitizeAnswer(next[i].content, promptText);
+      finalBriefLocal = sanitized;
+      next[i] = { ...next[i], content: sanitized };
+      return next;
+    });
+    lastBriefRef.current = (finalBriefLocal || "").trim();
+  }
+
+  setBriefFinished(true);
+}
+
+
   // Ctrl/Cmd+S to save
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [handleSave]);
+  const onKey = (e: KeyboardEvent) => {
+    // Save
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      handleSave();
+      return;
+    }
+    // Rename (F2) the active file in tabs (simple version)
+    if (e.key === 'F2' && activeFile) {
+      e.preventDefault();
+      startRename(activeFile.path);
+      return;
+    }
+    // Delete (Del) active file
+    if (e.key === 'Delete' && activeFile) {
+      e.preventDefault();
+      openDelete(activeFile.path);
+      return;
+    }
+  };
+  window.addEventListener('keydown', onKey);
+  return () => window.removeEventListener('keydown', onKey);
+}, [handleSave, activeFile]);
+
+  // useEffect(() => {
+  //   const onKey = (e: KeyboardEvent) => {
+  //     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+  //       e.preventDefault();
+  //       handleSave();
+  //     }
+  //   };
+  //   window.addEventListener('keydown', onKey);
+  //   return () => window.removeEventListener('keydown', onKey);
+  // }, [handleSave]);
 
   // Warn on page close/refresh if any unsaved edits
   useEffect(() => {
@@ -427,6 +983,7 @@ const cancelCreate = () => {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [messages, aiFiles, isRunning]);
+
 
   // File actions popover / modals
 const [fileMenuFor, setFileMenuFor] = useState<string|null>(null);
@@ -495,18 +1052,51 @@ const openDelete = (path: string) => {
 
 const confirmDelete = async () => {
   if (!deleteTarget) return;
-  // Local update
-  setFiles(prev => prev.filter(f => f.path !== deleteTarget));
-  if (activeFile?.path === deleteTarget) setActiveFile(null);
-  setDirtyPaths(prev => { const n = new Set(prev); n.delete(deleteTarget); return n; });
 
-  // Persist
-  try {
-    if (projectId) {
-      const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(deleteTarget)}`;
-      await fetch(url, { method: 'DELETE' });
+  // File?
+  const file = files.find(f => f.path === deleteTarget);
+
+  if (file) {
+    // local
+    setFiles(prev => prev.filter(f => f.path !== deleteTarget));
+    if (activeFile?.path === deleteTarget) setActiveFile(null);
+    setDirtyPaths(prev => { const n = new Set(prev); n.delete(deleteTarget); return n; });
+
+    // persist
+    try {
+      if (projectId) {
+        const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(deleteTarget)}`;
+        await fetch(url, { method: 'DELETE' });
+      }
+    } catch {}
+  } else {
+    // Folder delete: remove everything under "folder/"
+    const prefix = `${deleteTarget}/`;
+    const toRemove = files.filter(f => f.path === `${deleteTarget}/.gitkeep` || f.path.startsWith(prefix));
+    if (toRemove.length) {
+      // local
+      setFiles(prev => prev.filter(f => !(f.path === `${deleteTarget}/.gitkeep` || f.path.startsWith(prefix))));
+      if (activeFile && (activeFile.path === `${deleteTarget}/.gitkeep` || activeFile.path.startsWith(prefix))) {
+        setActiveFile(null);
+      }
+      setDirtyPaths(prev => {
+        const n = new Set(prev);
+        toRemove.forEach(f => n.delete(f.path));
+        return n;
+      });
+
+      // persist each file delete
+      try {
+        if (projectId) {
+          for (const f of toRemove) {
+            const url = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(f.path)}`;
+            await fetch(url, { method: 'DELETE' });
+          }
+        }
+      } catch {}
     }
-  } catch {}
+  }
+
   setDeleteOpen(false);
 };
 
@@ -524,7 +1114,7 @@ const confirmDelete = async () => {
       case 'py':
         return 'python';
       case 'java':
-        return 'markup';
+        return 'java' as unknown as Language;
       case 'css':
         return 'css';
       case 'html':
@@ -533,6 +1123,11 @@ const confirmDelete = async () => {
         return 'json';
       case 'md':
         return 'markdown';
+        case 'cs':
+        return 'csharp' as unknown as Language;
+      case 'yml':
+      case 'yaml':
+        return 'yaml' as unknown as Language;
       default:
         return 'javascript';
     }
@@ -547,18 +1142,6 @@ const confirmDelete = async () => {
     if (tools.some(t => /^playwright$/i.test(t))) return 'Playwright';
     if (tools.some(t => /^cypress$/i.test(t))) return 'Cypress';
     return tools[0];
-  }
-
-  function pickLanguage(proj: any): string {
-    if (!proj) return 'TypeScript';
-    const langs: string[] = (proj.languages ?? (proj.language ? [proj.language] : [])) as string[];
-    if (!langs || langs.length === 0) return (proj.language ? String(proj.language) : 'TypeScript');
-    if (langs.some(l => /^(c#|csharp)$/i.test(l))) return 'C#';
-    if (langs.some(l => /^java$/i.test(l))) return 'Java';
-    if (langs.some(l => /^python$/i.test(l))) return 'Python';
-    if (langs.some(l => /^typescript$/i.test(l))) return 'TypeScript';
-    if (langs.some(l => /^javascript$/i.test(l))) return 'JavaScript';
-    return langs[0];
   }
 
   // Group files
@@ -591,35 +1174,77 @@ const confirmDelete = async () => {
     setMoveTargetOpenFor(null);
     setMoveSourceType(null);
   }
-  function moveFolderTo(folderName: string, targetFolder: string) {
-    if (folderName === targetFolder) return;
-    setFiles(prev => {
-      const items = prev.map(i => ({ ...i }));
-      const prefix = `${folderName}/`;
-      const folderItems = items.filter(x => x.path.startsWith(prefix));
-      if (folderItems.length === 0) return prev;
-      const newPrefix = targetFolder === '_root' ? '' : `${targetFolder}/${folderName}/`;
-      const updated = items.map(it => {
-        if (it.path.startsWith(prefix)) {
-          const suffix = it.path.substring(prefix.length);
-          const newPath = newPrefix ? `${newPrefix}${suffix}` : `${folderName}/${suffix}`.replace(/^\//, '') ;
-          return { ...it, path: newPath };
+
+// 🔧 CHANGE: persist folder moves just like rename does
+function moveFolderTo(folderName: string, targetFolder: string) {
+  if (folderName === targetFolder) return;
+
+  const prefix = `${folderName}/`;
+  const newPrefix = targetFolder === '_root'
+    ? `${folderName}/` // moving under root keeps the same leaf (we'll rebuild below)
+    : `${targetFolder}/${folderName.split('/').pop()}/`;
+
+  // Build "updates" first so we can persist after setState
+  const updates: { from: string; to: string; content: string }[] = [];
+
+  setFiles(prev => {
+    const items = prev.map(i => ({ ...i }));
+    // all files inside source folder:
+    const moved = items.filter(x => x.path.startsWith(prefix));
+    if (moved.length === 0) return prev;
+
+    const next: FileItem[] = [];
+    for (const f of items) {
+      if (f.path.startsWith(prefix)) {
+        const suffix = f.path.substring(prefix.length);
+        const to = `${newPrefix}${suffix}`.replace(/\/+/g, '/');
+        updates.push({ from: f.path, to, content: f.content ?? '' });
+        next.push({ path: to, content: f.content ?? '' });
+
+        if (activeFile?.path === f.path) {
+          // keep active file in sync
+          setActiveFile({ path: to, content: f.content ?? '' });
         }
-        return it;
-      });
-      const newPaths = updated.map(u => u.path);
-      const collisions = newPaths.some((p, i) => newPaths.indexOf(p) !== i);
-      if (collisions) return prev;
-      if (activeFile && activeFile.path.startsWith(prefix)) {
-        const suffix = activeFile.path.substring(prefix.length);
-        const newActive = (newPrefix ? `${newPrefix}${suffix}` : `${folderName}/${suffix}`.replace(/^\//, ''));
-        setActiveFile({ path: newActive, content: activeFile.content });
+      } else {
+        next.push(f);
       }
-      return updated;
-    });
-    setMoveTargetOpenFor(null);
-    setMoveSourceType(null);
-  }
+    }
+    return next;
+  });
+
+  // Remap folder open state (so same “open/closed” visual continues)
+  setFolderOpen(prev => {
+    const m = { ...prev };
+    // carry over state for leaf key if present
+    const oldKey = folderName;
+    const newKey = targetFolder === '_root'
+      ? folderName.split('/').pop()!
+      : `${targetFolder}/${folderName.split('/').pop()!}`;
+    if (m[oldKey] !== undefined) {
+      m[newKey] = m[oldKey];
+      delete m[oldKey];
+    }
+    return m;
+  });
+
+  // 🔧 Persist the move on the backend by PUTting new paths then DELETEting old ones
+  (async () => {
+    try {
+      if (projectId) {
+        for (const u of updates) {
+          const putUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(u.to)}`;
+          const delUrl = `${backendBase}/api/projects/${encodeURIComponent(String(projectId))}/files/${encodeURIComponent(u.from)}`;
+          await fetch(putUrl, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ content: u.content }) });
+          await fetch(delUrl, { method: 'DELETE' });
+        }
+      }
+    } catch {}
+  })();
+
+  setMoveTargetOpenFor(null);
+  setMoveSourceType(null);
+}
+
 
   // --- Create a new file (UI-first, optional persist) ---
 const createNewFile = async () => {
@@ -730,9 +1355,15 @@ const refreshProject = async () => {
 };
 
 
-  // Drag helpers
+  // Drag helpers (UPGRADED)
   function handleDragStart(e: React.DragEvent, fpath: string) {
-    try { e.dataTransfer?.setData('text/plain', fpath); } catch {}
+    e.stopPropagation();
+    try {
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', fpath);
+      }
+    } catch {}
     setDraggedFilePath(fpath);
     setMoveTargetOpenFor(null);
     setMoveSourceType(null);
@@ -743,16 +1374,27 @@ const refreshProject = async () => {
   }
   function handleDragOverTarget(e: React.DragEvent, targetKey: string) {
     e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     if (dragOverTarget !== targetKey) setDragOverTarget(targetKey);
   }
   function handleDragLeaveTarget() { setDragOverTarget(null); }
   function handleDropOnTarget(e: React.DragEvent, targetKey: string) {
     e.preventDefault();
-    const source = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || draggedFilePath;
-    if (source) moveFileTo(source, targetKey);
+    e.stopPropagation();
+    const filePath   = e.dataTransfer?.getData('text/plain')     || null;
+    const folderPath = e.dataTransfer?.getData('text/x-folder')  || null;
+
+    if (filePath) moveFileTo(filePath, targetKey);
+    else if (folderPath && folderPath !== targetKey) {
+      // Move folder (with persistence via moveFolderTo)
+      const src = folderPath;
+      if (src === targetKey || targetKey.startsWith(src + '/')) return; // prevent moving into itself
+      moveFolderTo(src, targetKey);
+    }
     setDraggedFilePath(null);
     setDragOverTarget(null);
   }
+
 
   // Cleanup
   useEffect(() => {
@@ -766,76 +1408,168 @@ const refreshProject = async () => {
   async function sendPrompt() {
     if (!projectId || !scenario.trim()) return;
     const promptText = scenario;
+    
     setScenario('');
     setIsRunning(true);
+    setMessages([]);
     setAiFiles([]);
     setAppliedMap({});
     setCountdown(null);
     setMessages(prev => [...prev, { role: 'user', content: promptText }]); // push user message
 
-    abortControllerRef.current = new AbortController();
+  const toolToUse = pickTool(projectMeta);
+const langToUse = pickLanguage(projectMeta);
+const projName = projectName || 'MyProject';
+const nsName = safeIdent(projectName ?? undefined);
+
+const askPrompt = [
+  `Context: Use ONLY ${toolToUse} with ${langToUse}.`,
+  `Project name: "${projName}" (namespace-safe: ${nsName}). Use the *project name*, not the id, in any headers/namespaces.`,
+  `Be concise. Answer crisply with tight bullets or a short code block.`,
+  ``,
+  promptText
+].join("\n");
+
+    
     try {
   // use shared backendBase from lib/api
       if (mode === 'ask') {
-        const res = await fetch(`${backendBase}/api/ai/ask`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, prompt: promptText }),
-          signal: abortControllerRef.current.signal,
-        });
+
+        const ac = new AbortController();
+          abortControllerRef.current = ac;
+          const res = await fetch(`${backendBase}/api/ai/ask`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    projectId,
+    projectName: projName,
+    prompt: askPrompt,
+    context: { tool: toolToUse, language: langToUse, projectName: projName, namespace: nsName }
+  }),
+  signal: ac.signal,
+});
+
         if (!res.ok) {
           const txt = await res.text();
           setMessages(prev => [...prev, { role: 'assistant', content: 'Error: ' + txt }]);
           setIsRunning(false);
           return;
         }
+
         const json = await res.json();
-        const answer = (json && (json.answer ?? json.generated ?? json.generatedCode)) || JSON.stringify(json);
+        const raw = (json && (json.answer ?? json.generated ?? json.generatedCode)) || JSON.stringify(json);
+        const cleaned = sanitizeAnswer(String(raw), promptText); // <-- removes echoed question + adds leading newline
         setAiFiles([]);
-        setMessages(prev => [...prev, { role: 'assistant', content: String(answer) }]);
-      } else {
-        const toolToUse = pickTool(projectMeta);
-        const langToUse = pickLanguage(projectMeta);
+        setMessages(prev => [...prev, { role: 'assistant', content: cleaned }]);
 
-        const res = await fetch(`${backendBase}/api/ai/generate-code`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, tool: toolToUse, language: langToUse, prompt: promptText }),
-          signal: abortControllerRef.current.signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text();
-          setMessages(prev => [...prev, { role: 'assistant', content: 'Error: ' + txt }]);
-          setIsRunning(false);
-          return;
-        }
-        const json = await res.json();
-        const content = json.generatedCode ?? json.generated ?? json;
-        let parsed: { path: string; content: string }[] = [];
-        try {
-          parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        } catch {
-          parsed = [];
-        }
-        setAiFiles(parsed || []);
-        setMessages(prev => [...prev, { role: 'assistant', content: typeof content === 'string' ? content : JSON.stringify(content, null, 2) }]);
+      } 
+      
+      else {
+  const toolToUse = pickTool(projectMeta);
+  const langToUse = pickLanguage(projectMeta);
+  const projName = projectName || 'MyProject';
+  const nsName = safeIdent(projectName ?? undefined);
 
-        if (parsed.length > 0) {
-          setCountdown(30);
-          timerRef.current = window.setInterval(() => {
-            setCountdown(c => {
-              if (c === null) return null;
-              if (c <= 1) {
-                if (timerRef.current) window.clearInterval(timerRef.current);
-                timerRef.current = null;
-                autoApplyAll(parsed);
-                return null;
-              }
-              return c - 1;
-            });
-          }, 1000);
-        }
+  setBriefFinished(false);
+  setCodeReady(false);
+
+  // 1) Get the brief (await), with stack constraints
+ const briefPrompt = [
+  `Context: Use ONLY ${toolToUse} with ${langToUse}.`,
+  `Project name: "${projName}" (namespace-safe: ${nsName}). Use the name, not the id.`,
+  `Keep the plan crisp; bullets only; no filler.`,
+  ``,
+  promptText
+].join("\n");
+
+  await streamAgentBrief(projectId, briefPrompt);
+
+  // 2) Insert a status message while we generate code
+  let statusIndex = -1;
+  setMessages(prev => {
+    statusIndex = prev.length;
+    statusMsgIndexRef.current = statusIndex;
+    return [
+      ...prev,
+      {
+        role: "assistant",
+        content: "🔧 Generating code files based on the plan… this can take a moment."
       }
+    ];
+  });
+
+  // 3) Build the code-gen prompt from the exact brief
+  const plan = (lastBriefRef.current || "(no plan)").trim();
+  const genPrompt = [
+  `User request: ${promptText}`,
+  `Project: "${projName}" (namespace-safe: ${nsName}).`,
+  `Follow EXACTLY the plan below using ${toolToUse} + ${langToUse}. Do not introduce other tools/frameworks.`,
+  `---BEGIN PLAN---`,
+  plan,
+  `---END PLAN---`,
+  `Generate only the files implementing this plan.`,
+  `Add this header to each file: // Project: ${projName}`,
+  `When a namespace or package is needed, use: ${nsName}`
+].join("\n");
+
+
+  const ac2 = new AbortController();
+  abortControllerRef.current = ac2;
+
+  try {
+    const res = await fetch(`${backendBase}/api/ai/generate-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId,
+        tool: toolToUse,
+        language: langToUse,
+        prompt: genPrompt
+      }),
+      signal: ac2.signal,
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      // replace the status with an error
+      setMessages(prev => {
+        const next = [...prev];
+        const i = statusMsgIndexRef.current ?? -1;
+        if (i >= 0 && next[i]) next[i] = { role: "assistant", content: `❌ Code generation failed: ${txt}` };
+        else next.push({ role: "assistant", content: `❌ Code generation failed: ${txt}` });
+        return next;
+      });
+      return;
+    }
+
+    const json = await res.json();
+    const content = json.generatedCode ?? json.generated ?? json;
+    let parsed: { path: string; content: string }[] = [];
+    try { parsed = typeof content === "string" ? JSON.parse(content) : content; } catch {}
+
+    setAiFiles(parsed || []);
+    setCodeReady(true);
+
+    // ✅ Replace the status message with the final banner
+    setMessages(prev => {
+      const next = [...prev];
+      const i = statusMsgIndexRef.current ?? -1;
+      const banner = "✅ All set! Here are your generated files. Use **Apply** to write them to the project or **Revert** to undo.";
+      if (i >= 0 && next[i]) next[i] = { role: "assistant", content: banner };
+      else next.push({ role: "assistant", content: banner });
+      return next;
+    });
+
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      setMessages(prev => [...prev, { role: "assistant", content: "Generation canceled" }]);
+    } else {
+      setMessages(prev => [...prev, { role: "assistant", content: "Generation failed: " + (err?.message || String(err)) }]);
+    }
+  }
+} 
+
+
     } catch (e: any) {
       if (e.name === 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Generation canceled' }]);
@@ -850,6 +1584,7 @@ const refreshProject = async () => {
 
   function stopGeneration() {
     if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (briefAbortRef.current) briefAbortRef.current.abort();  
     setIsRunning(false);
   }
 
@@ -926,12 +1661,14 @@ const refreshProject = async () => {
         <title>IDE & AI Assistance</title>
       </Head>
       <Header />
-      <main className={`app-root ide-page w-full ${lightMode ? 'theme-light bg-slate-50' : 'var(--vscode-bg)'}`} >
+      <main className={`app-root ide-page w-full ${lightMode ? 'theme-light bg-slate-50' : 'theme-dark'}`} style={{ background: lightMode ? undefined : 'var(--vscode-bg)' }}>
         <div className={`${lightMode ? 'bg-white border-b border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'} flex-shrink-0 px-6 py-3`}>
           <div className="max-w-[1100px] mx-auto flex items-center justify-between">
             <h1 className={`text-2xl font-semibold ${lightMode ? 'text-slate-800' : 'text-[var(--vscode-text)]'}`}>IDE & AI Assistance</h1>
             <div className="flex items-center gap-2">
-              <button onClick={() => setLightMode(l => !l)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title={lightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}> {lightMode ? (<Moon className="w-5 h-5 text-slate-600" />) : (<Sun className="w-5 h-5 text-yellow-400" />)}</button>
+              <button disabled 
+              // onClick={() => setLightMode(l => !l)} 
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title={lightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}> {lightMode ? (<Moon className="w-5 h-5 text-slate-600" />) : (<Sun className="w-5 h-5 text-yellow-400" />)}</button>
             </div>
           </div>
         </div>
@@ -960,274 +1697,54 @@ const refreshProject = async () => {
 
                 <div className="px-3 py-3 border-b border-transparent">
                   {(() => {
-                    const [projectOpen, setProjectOpen] = React.useState(true);
-                    const toggleProject = () => setProjectOpen((v) => !v);
-                    const groups: Record<string, FileItem[]> = {};
-                    files.forEach((f) => {
-                      const seg = f.path.includes('/') ? f.path.split('/')[0] : '';
-                      const key = seg || '_root';
-                      if (!groups[key]) groups[key] = [];
-                      groups[key].push(f);
-                    });
-                    return (
-                      <div className={`font-medium text-sm flex flex-col gap-2 ${lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'}`}>
-                        <div
-                          className="flex items-center gap-2 cursor-pointer select-none"
-                          tabIndex={0}
-                          role="button"
-                          aria-expanded={projectOpen}
-                          onClick={toggleProject}
-                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleProject(); }}
-                          style={{ userSelect: 'none' }}
-                        >
-                          <Chevron open={projectOpen} size={14} lightMode={lightMode} />
-                          {projectName ?? 'TestingTarun'}
-                        </div>
+                        // Build a proper folder/file tree from the flat list
+                        const tree = buildTree(files);
+                        const root = tree as Extract<TreeNode, { type: 'folder' }>;
 
-                        {projectOpen && (
-                          loading ? (
-                            <div className="text-sm text-slate-400 flex items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                              Loading files...
+                        return (
+                          <div
+                            className={`font-medium text-sm flex flex-col gap-2 ${
+                              lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'
+                            }`}
+                          >
+                            {/* Project header row (kept simple & always open) */}
+                            <div
+                              className="flex items-center gap-2 cursor-default select-none"
+                              style={{ userSelect: 'none' }}
+                            >
+                              <Chevron open={true} size={14} lightMode={lightMode} />
+                              {projectName ?? 'TestingTarun'}
                             </div>
-                          ) : files.length === 0 ? (
-                            <div className="text-sm text-slate-400 py-8 text-center">
-                              <div className="mb-2">📁</div>
-                              No files in this project.
+
+                            {/* Recursive tree showing nested folders: src/pages, src/tests, etc. */}
+                            <div className="text-sm mt-1">
+                              <FolderView
+                                  node={root}
+                                  lightMode={lightMode}
+                                  folderOpen={folderOpen}
+                                  setFolderOpen={setFolderOpen}
+                                  onSelectFile={(path) => {
+                                    const f = files.find((x) => x.path === path);
+                                    if (f) setActiveFile(f);
+                                  }}
+                                  activeFilePath={activeFile?.path}
+
+                                  setCtxMenu={setCtxMenu}
+                                  renaming={renaming}
+                                  setRenaming={setRenaming}
+                                  onCommitRename={commitRename}
+
+                                  onFileDragStart={(e, path) => handleDragStart(e, path)}
+                                  onFileDragEnd={handleDragEnd}
+                                  onFolderDragOver={(e, key) => handleDragOverTarget(e, key)}
+                                  onFolderDragLeave={handleDragLeaveTarget}
+                                  onFolderDrop={(e, key) => handleDropOnTarget(e, key)}
+                                />
+
                             </div>
-                          ) : (
-                            <div className="text-sm">
-                              {Object.keys(groups).map((grp) => {
-                                const isFolder = grp !== '_root';
-                                const isOpen = folderOpen[grp] ?? true; // default open
-
-                                if (isFolder) {
-                                  return (
-                                    <div key={grp} className="mb-4">
-                                      <div className={`flex items-center justify-between mb-2 ${lightMode ? 'text-slate-500' : 'text-blue-400'}`}>
-                                        <div
-                                          className="flex items-center gap-2 font-medium text-xs select-none cursor-pointer"
-                                          onClick={() => setFolderOpen(prev => ({ ...prev, [grp]: !isOpen }))}
-                                        >
-                                          <Chevron open={isOpen} size={12} lightMode={lightMode} />
-                                          {grp}
-                                        </div>
-
-                                        <div className="relative">
-                                          <button
-                                            title="Move folder"
-                                            onClick={() => { setMoveTargetOpenFor(grp); setMoveSourceType('folder'); }}
-                                            className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-                                          >
-                                            ⋯
-                                          </button>
-                                          {moveTargetOpenFor === grp && moveSourceType === 'folder' && (
-                                            <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                                              <div className="px-2 py-2 text-xs">Move folder to:</div>
-                                              <div className="max-h-40 overflow-auto">
-                                                {Object.keys(groups).map(target => (
-                                                  <button
-                                                    key={target}
-                                                    onClick={() => moveFolderTo(grp, target)}
-                                                    className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                                                  >
-                                                    {target === '_root' ? '(root)' : target}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {isOpen && (
-                                        <ul className="space-y-1">
-                                          {groups[grp].filter((f) => !/\/\.gitkeep$|\/\.keep$/.test(f.path)).map((f) => (
-                                            <li
-                                              key={f.path}
-                                              className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
-                                                activeFile?.path === f.path
-                                                  ? (lightMode
-                                                      ? 'bg-blue-50 text-blue-700 border-blue-300'
-                                                      : 'bg-slate-800 text-[var(--vscode-text)] border-slate-600/50')
-                                                  : (lightMode
-                                                      ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                                                      : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
-                                              }`}
-                                              onClick={() => setActiveFile(f)}
-                                            >
-                                              <span className="text-blue-400">
-                                                {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
-                                                  : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
-                                                  : f.path.endsWith('.css') ? '🎨'
-                                                  : f.path.endsWith('.json') ? '📄'
-                                                  : '📝'}
-                                              </span>
-                                              <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
-                                              <div className="ml-auto relative">
-                                                <button
-                                                  title="Move file"
-                                                  onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
-                                                  className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-                                                >
-                                                  <div className="ml-auto relative" onClick={e => e.stopPropagation()}>
-                                                    <button
-                                                      title="Actions"
-                                                      onClick={() => setFileMenuFor(fileMenuFor === f.path ? null : f.path)}
-                                                      className={`h-7 w-7 grid place-items-center rounded-lg border transition
-                                                        ${lightMode ? 'border-slate-300 hover:bg-slate-100 text-slate-600'
-                                                                    : 'border-slate-600 hover:bg-slate-700/60 text-slate-200'}`}
-                                                    >
-                                                      <MoreVertical className="w-4 h-4" />
-                                                    </button>
-
-                                                    {fileMenuFor === f.path && (
-                                                      <div
-                                                        className={`absolute right-0 top-8 z-50 w-48 rounded-xl border shadow-lg overflow-hidden
-                                                          ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'}`}
-                                                      >
-                                                        <button
-                                                          onClick={() => openMove(f.path)}
-                                                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
-                                                            ${lightMode ? 'hover:bg-slate-50 text-slate-700' : 'hover:bg-slate-700/60 text-slate-200'}`}
-                                                        >
-                                                          <MoveRight className="w-4 h-4" /> Move / Rename
-                                                        </button>
-
-                                                        <div className={`${lightMode ? 'border-t border-slate-100' : 'border-t border-slate-700/60'}`} />
-
-                                                        <button
-                                                          onClick={() => openDelete(f.path)}
-                                                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
-                                                            ${lightMode ? 'hover:bg-red-50 text-red-600' : 'hover:bg-red-900/30 text-red-300'}`}
-                                                        >
-                                                          <Trash2 className="w-4 h-4" /> Delete
-                                                        </button>
-                                                      </div>
-                                                    )}
-                                                  </div>
-
-                                                </button>
-                                                {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
-                                                  <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                                                    <div className="px-2 py-2 text-xs">Move file to:</div>
-                                                    <div className="max-h-40 overflow-auto">
-                                                      {Object.keys(groups).map(target => (
-                                                        <button
-                                                          key={target}
-                                                          onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
-                                                          className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                                                        >
-                                                          {target === '_root' ? '(root)' : target}
-                                                        </button>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                // Non-folder group (root files)
-                                return (
-                                  <div key={grp} className="mb-4">
-                                    <ul className="space-y-1">
-                                      {groups[grp].filter((f) => !/\/\.gitkeep$|\/\.keep$/.test(f.path)).map((f) => (
-                                        <li
-                                          key={f.path}
-                                          className={`flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-colors duration-150 border ${
-                                            activeFile?.path === f.path
-                                              ? (lightMode ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-slate-800 text-[var(--vscode-text)] border-slate-600/50')
-                                              : (lightMode ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'text-slate-300 border-transparent hover:bg-slate-700/50 hover:text-[var(--vscode-text)]')
-                                          }`}
-                                          onClick={() => setActiveFile(f)}
-                                        >
-                                          <span className="text-blue-400">
-                                            {f.path.endsWith('.tsx') || f.path.endsWith('.ts') ? '⚛️'
-                                              : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? '🟨'
-                                              : f.path.endsWith('.css') ? '🎨'
-                                              : f.path.endsWith('.json') ? '📄'
-                                              : '📝'}
-                                          </span>
-                                          <span className="truncate font-medium">{f.path.replace(/^.*\//, '')}</span>
-                                          <div className="ml-auto relative">
-                                            <button
-                                              title="Move file"
-                                              onClick={(e) => { e.stopPropagation(); setMoveTargetOpenFor(f.path); setMoveSourceType('file'); }}
-                                              className={`px-2 py-1 rounded text-xs ${lightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-blue-600/20 text-blue-300'}`}
-                                            >
-                                              <div className="ml-auto relative" onClick={e => e.stopPropagation()}>
-                                                  <button
-                                                    title="Actions"
-                                                    onClick={() => setFileMenuFor(fileMenuFor === f.path ? null : f.path)}
-                                                    className={`h-7 w-7 grid place-items-center rounded-lg border transition
-                                                      ${lightMode ? 'border-slate-300 hover:bg-slate-100 text-slate-600'
-                                                                  : 'border-slate-600 hover:bg-slate-700/60 text-slate-200'}`}
-                                                  >
-                                                    <MoreVertical className="w-4 h-4" />
-                                                  </button>
-
-                                                  {fileMenuFor === f.path && (
-                                                    <div
-                                                      className={`absolute right-0 top-8 z-50 w-48 rounded-xl border shadow-lg overflow-hidden
-                                                        ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'}`}
-                                                    >
-                                                      <button
-                                                        onClick={() => openMove(f.path)}
-                                                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
-                                                          ${lightMode ? 'hover:bg-slate-50 text-slate-700' : 'hover:bg-slate-700/60 text-slate-200'}`}
-                                                      >
-                                                        <MoveRight className="w-4 h-4" /> Move / Rename
-                                                      </button>
-
-                                                      <div className={`${lightMode ? 'border-t border-slate-100' : 'border-t border-slate-700/60'}`} />
-
-                                                      <button
-                                                        onClick={() => openDelete(f.path)}
-                                                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2
-                                                          ${lightMode ? 'hover:bg-red-50 text-red-600' : 'hover:bg-red-900/30 text-red-300'}`}
-                                                      >
-                                                        <Trash2 className="w-4 h-4" /> Delete
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </div>
-
-                                            </button>
-                                            {moveTargetOpenFor === f.path && moveSourceType === 'file' && (
-                                              <div className={`absolute right-0 mt-2 w-44 z-40 rounded-md border ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-600/40'} shadow-lg`}>
-                                                <div className="px-2 py-2 text-xs">Move file to:</div>
-                                                <div className="max-h-40 overflow-auto">
-                                                  {Object.keys(groups).map(target => (
-                                                    <button
-                                                      key={target}
-                                                      onClick={(ev) => { ev.preventDefault(); moveFileTo(f.path, target); }}
-                                                      className={`w-full text-left px-3 py-1 text-xs ${lightMode ? 'hover:bg-slate-50' : 'hover:bg-slate-700/60'}`}
-                                                    >
-                                                      {target === '_root' ? '(root)' : target}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )
-                        )}
-                      </div>
-                    );
-                  })()}
+                          </div>
+                        );
+                      })()}
                 </div>
               </div>
               </div>
@@ -1408,8 +1925,8 @@ const refreshProject = async () => {
                               );
                             }
                             return (
-                              <div key={idx} className="mt-1">
-                                <AIAnswerRenderer answer={m.content} lightMode={lightMode} />
+                              <div key={idx} className="mt-4">
+                                <AIAnswerRenderer answer={m.content} lightMode={lightMode} defaultLang={fallbackLang}/>
                               </div>
                             );
                           })}
@@ -1436,7 +1953,7 @@ const refreshProject = async () => {
                         )
                       )}
 
-                      {mode === 'agent' && aiFiles.length > 0 && (
+                      {mode === 'agent' && briefFinished && aiFiles.length > 0 && (
                         <div>
                           <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'}`}>
                             Files Returned <span className={`text-xs font-normal ${lightMode ? 'text-slate-500' : 'text-slate-400'}`}>({aiFiles.length})</span>
@@ -1451,7 +1968,21 @@ const refreshProject = async () => {
                                     <button onClick={e => { e.preventDefault(); revertFile(f); }} disabled={!appliedMap[f.path]?.applied} className={`px-2 py-1 text-xs rounded ${appliedMap[f.path]?.applied ? 'bg-red-600 text-[var(--vscode-text)] hover:bg-red-500' : 'bg-red-200 text-red-500 cursor-not-allowed'}`}>Revert</button>
                                   </span>
                                 </summary>
-                                <pre className={`mt-2 max-h-64 overflow-auto text-xs whitespace-pre-wrap ${lightMode ? 'text-slate-600' : 'text-slate-300'}`}>{f.content}</pre>
+                                {/* <pre className={`mt-2 max-h-64 overflow-auto text-xs whitespace-pre-wrap ${lightMode ? 'text-slate-600' : 'text-slate-300'}`}>{f.content}</pre> */}
+                                <div className="mt-2">
+                                  <CodeBlock
+                                    code={f.content}
+                                    // try to infer a language from the filename extension
+                                    lang={f.path.endsWith('.cs') ? 'csharp'
+                                      : f.path.endsWith('.ts') || f.path.endsWith('.tsx') ? 'typescript'
+                                      : f.path.endsWith('.js') || f.path.endsWith('.jsx') ? 'javascript'
+                                      : f.path.endsWith('.html') ? 'markup'
+                                      : f.path.endsWith('.css') ? 'css'
+                                      : undefined}
+                                    lightMode={lightMode}
+                                  />
+                                </div>
+
                               </details>
                             ))}
                           </div>
@@ -1563,6 +2094,85 @@ const refreshProject = async () => {
               </SplitPane>
             </SplitPane>
           </div>
+          {/* Context menu */}
+          {ctxMenu && (
+                <div
+                  className="fixed inset-0 z-[1990]"
+                  onClick={() => setCtxMenu(null)}
+                  onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }}
+                >
+                  <div
+                    ref={ctxMenuBoxRef}
+                    className={`absolute z-[1995] rounded-md border shadow-lg text-sm
+                      ${lightMode ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-800 border-slate-600 text-slate-100'}`}
+                    style={{ left: ctxMenu.x, top: ctxMenu.y, minWidth: 180 }}
+                    // prevent outside listener from closing before our button handler
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {ctxMenu.type === 'file' ? (
+                      <>
+                        <button
+                          className="ctx-item"
+                          onClick={() => {
+                            const p = ctxMenu?.path;
+                            setCtxMenu(null);
+                            if (p) startRename(p);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          className="ctx-item"
+                          onClick={() => {
+                            const p = ctxMenu?.path;
+                            setCtxMenu(null);
+                            if (p) openMove(p);
+                          }}
+                        >
+                          Move…
+                        </button>
+                        <button
+                          className="ctx-item danger"
+                          onClick={() => {
+                            const p = ctxMenu?.path;
+                            setCtxMenu(null);
+                            if (p) openDelete(p);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="ctx-item" onClick={() => { setCtxMenu(null); openCreate('file'); }}>New File</button>
+                        <button className="ctx-item" onClick={() => { setCtxMenu(null); openCreate('folder'); }}>New Folder</button>
+                        <button
+                          className="ctx-item"
+                          onClick={() => {
+                            const p = ctxMenu?.path;
+                            setCtxMenu(null);
+                            if (p) startRename(p);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          className="ctx-item danger"
+                          onClick={() => {
+                            const p = ctxMenu?.path;
+                            setCtxMenu(null);
+                            if (p) openDelete(p);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
           {createOpen && (
               <div
                 className="fixed inset-0 z-[2000] bg-black/40 backdrop-blur-[2px] flex items-start justify-center p-4"
@@ -1702,7 +2312,7 @@ const refreshProject = async () => {
                                 w-full max-w-md rounded-2xl border shadow-xl animate-fade-in`}
                     onClick={e => e.stopPropagation()}>
                   <div className={`px-5 py-4 border-b ${lightMode ? 'border-slate-200' : 'border-slate-700/60'}`}>
-                    <h3 className={`text-sm font-semibold ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}>Delete file</h3>
+                    <h3 className={`text-sm font-semibold ${lightMode ? 'text-slate-800' : 'text-slate-100'}`}> {files.some(f => f.path === deleteTarget) ? 'Delete file' : 'Delete folder'} </h3>
                   </div>
                   <div className="px-5 py-4">
                     <p className={`${lightMode ? 'text-slate-700' : 'text-slate-200'} text-sm`}>
@@ -1727,6 +2337,16 @@ const refreshProject = async () => {
 
         {/* Global styles for this page */}
         <style jsx global>{`
+        /* Assistant rendering should look like plain content, not a chat bubble */
+          .assistant-msg {
+            background: transparent !important;
+            border: 0 !important;
+            padding: 0 !important;
+          }
+          .assistant-msg p { margin: 0 0 .5rem 0; }
+          .assistant-msg h1, .assistant-msg h2, .assistant-msg h3 { margin: .6rem 0 .4rem; }
+
+
           @keyframes fade-in {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
@@ -1810,6 +2430,63 @@ const refreshProject = async () => {
               0%, 60%, 100% { transform: translateY(0); opacity: .5; }
               30% { transform: translateY(-3px); opacity: 1; }
             }
+
+            /* ---- Code block theme tokens ---- */
+            :root {
+              --code-bg-light: #f8fafc;         /* light theme background (unchanged) */
+              --code-border-light: #e5e7eb;
+              --inline-code-light: #f1f5f9;
+            }
+            .theme-dark, [data-theme="dark"] {
+              --code-bg-dark: #2b2f36;          /* lighter gray for dark theme */
+              --code-border-dark: #475569;      /* slate-500 */
+              --inline-code-dark: #374151;      /* slate-700 for inline <code> */
+            }
+
+            /* Utility classes for code blocks */
+            .codeblock--light { background: var(--code-bg-light);  border-color: var(--code-border-light); }
+            .codeblock--dark  { background: var(--code-bg-dark);   border-color: var(--code-border-dark); }
+            .inlinecode--light { background: var(--inline-code-light); }
+            .inlinecode--dark  { background: var(--inline-code-dark); }
+
+            /* Compact, VS Code-like explorer rows */
+                .vscode-row {
+                  display:flex; align-items:center; gap:8px;
+                  height:24px; padding:0 6px; border-radius:4px;
+                  user-select:none; cursor:pointer;
+                }
+                .vscode-row--light { color:#334155; }
+                .vscode-row--dark  { color:#cbd5e1; }
+                .vscode-row--light:hover { background:#f3f4f6; }
+                .vscode-row--dark:hover  { background:rgba(148,163,184,.15); }
+                .vscode-row--active-light { background:#e6f0ff; color:#1e3a8a; }
+                .vscode-row--active-dark  { background:#1f2937; color:#e5e7eb; }
+                .vscode-row__icon { width:16px; text-align:center; opacity:.8; }
+                .vscode-row__label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+                .vscode-folder {
+                  display:flex; align-items:center; gap:6px;
+                  height:22px; padding:0 4px; border-radius:4px;
+                  font-size:12px; user-select:none; cursor:pointer;
+                }
+                .vscode-folder--light { color:#64748b; }
+                .vscode-folder--dark  { color:#93c5fd; }
+                .vscode-folder:hover { background: rgba(148,163,184,.12); }
+
+                /* inline rename input */
+                .vscode-rename {
+                  width:100%; background:transparent; border:1px solid rgba(148,163,184,.5);
+                  height:20px; border-radius:4px; padding:0 4px; outline:none;
+                }
+                .ctx-item {
+                  display:block; width:100%; text-align:left; padding:6px 10px;
+                }
+                .ctx-item:hover {
+                  background: rgba(148,163,184,.15);
+                }
+                .ctx-item.danger { color:#dc2626; }
+
+
 
         `}</style>
       </>

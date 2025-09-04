@@ -517,6 +517,114 @@
         }
       ],
       "message": "1 ui automation test for http://www.example.com. Create a separate test file "
+    },
+    {
+      "id": "revert-1756925238818",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:18.818Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "// Project: JavaSelenium\n# JavaSelenium\n\nThis project contains Selenium automated tests for SauceDemo.com.\n\n## Prerequisites\n- Java\n- Maven\n\n## Running Tests\n1. Clone the repository.\n2. Navigate to the project directory.\n3. Run `mvn clean test` to execute the test cases.\n"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1756925239859",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:19.859Z",
+      "filesBefore": [
+        {
+          "path": "pom.xml",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pom.xml",
+          "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n    <modelVersion>4.0.0</modelVersion>\n    <groupId>com.example</groupId>\n    <artifactId>JavaSelenium</artifactId>\n    <version>1.0-SNAPSHOT</version>\n\n    <dependencies>\n        <dependency>\n            <groupId>org.seleniumhq.selenium</groupId>\n            <artifactId>selenium-java</artifactId>\n            <version>4.0.0</version>\n        </dependency>\n        <dependency>\n            <groupId>org.testcontainers</groupId>\n            <artifactId>testcontainers</artifactId>\n            <version>1.15.3</version>\n        </dependency>\n        <dependency>\n            <groupId>junit</groupId>\n            <artifactId>junit</artifactId>\n            <version>4.12</version>\n            <scope>test</scope>\n        </dependency>\n    </dependencies>\n\n    <build>\n        <plugins>\n            <plugin>\n                <groupId>org.apache.maven.plugins</groupId>\n                <artifactId>maven-surefire-plugin</artifactId>\n                <version>2.22.2</version>\n            </plugin>\n        </plugins>\n    </build>\n</project>\n"
+        }
+      ],
+      "message": "Applied single file pom.xml"
+    },
+    {
+      "id": "revert-1756925240809",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:20.809Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/LoginPage.java",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/LoginPage.java",
+          "content": "// Project: JavaSelenium\npackage JavaSelenium.pages;\n\nimport org.openqa.selenium.By;\nimport org.openqa.selenium.WebDriver;\n\npublic class LoginPage {\n    WebDriver driver;\n\n    By usernameField = By.id(\"user-name\");\n    By passwordField = By.id(\"password\");\n    By loginButton = By.id(\"login-button\");\n\n    public LoginPage(WebDriver driver) {\n        this.driver = driver;\n    }\n\n    public void login(String username, String password) {\n        driver.findElement(usernameField).sendKeys(username);\n        driver.findElement(passwordField).sendKeys(password);\n        driver.findElement(loginButton).click();\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/pages/LoginPage.java"
+    },
+    {
+      "id": "revert-1756925241784",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:21.784Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/HomePage.java",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/HomePage.java",
+          "content": "// Project: JavaSelenium\npackage JavaSelenium.pages;\n\nimport org.openqa.selenium.By;\nimport org.openqa.selenium.WebDriver;\n\npublic class HomePage {\n    WebDriver driver;\n\n    By productsHeader = By.className(\"title\");\n\n    public HomePage(WebDriver driver) {\n        this.driver = driver;\n    }\n\n    public String getProductsHeader() {\n        return driver.findElement(productsHeader).getText();\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/pages/HomePage.java"
+    },
+    {
+      "id": "revert-1756925242911",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:22.911Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/LoginTest.java",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/LoginTest.java",
+          "content": "// Project: JavaSelenium\npackage JavaSelenium.tests;\n\nimport JavaSelenium.pages.LoginPage;\nimport JavaSelenium.pages.HomePage;\nimport org.junit.After;\nimport org.junit.Before;\nimport org.junit.Test;\nimport org.openqa.selenium.WebDriver;\nimport org.openqa.selenium.chrome.ChromeDriver;\n\nimport static org.junit.Assert.*;\n\npublic class LoginTest {\n    WebDriver driver;\n    LoginPage loginPage;\n    HomePage homePage;\n\n    @Before\n    public void setUp() {\n        System.setProperty(\"webdriver.chrome.driver\", \"path/to/chromedriver\");\n        driver = new ChromeDriver();\n        driver.get(\"https://www.saucedemo.com\");\n        loginPage = new LoginPage(driver);\n        homePage = new HomePage(driver);\n    }\n\n    @Test\n    public void testLoginWithValidCredentials() {\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @Test\n    public void testLoginWithInvalidUser() {\n        loginPage.login(\"invalid_user\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Username and password do not match\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyUsername() {\n        loginPage.login(\"\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Username is required\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyPassword() {\n        loginPage.login(\"standard_user\", \"\");\n        assertTrue(driver.getPageSource().contains(\"Password is required\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyCredentials() {\n        loginPage.login(\"\", \"\");\n        assertTrue(driver.getPageSource().contains(\"Username is required\"));\n    }\n\n    @Test\n    public void testLoginButtonDisabledInitially() {\n        // Test case for initial state of login button if username and password are empty\n    }\n\n    @Test\n    public void testLoginWithLockedOutUser() {\n        loginPage.login(\"locked_out_user\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Epic sadface: Sorry, this user has been locked out.\"));\n    }\n\n    @Test\n    public void testLoginWithProblemUser() {\n        loginPage.login(\"problem_user\", \"secret_sauce\");\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @Test\n    public void testLogoutFunctionality() {\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n        // Assuming there's a method to log out, you can assert the behavior here as well\n    }\n\n    @After\n    public void tearDown() {\n        driver.quit();\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/tests/LoginTest.java"
+    },
+    {
+      "id": "revert-1756925244561",
+      "projectId": "proj-1756843323975",
+      "createdAt": "2025-09-03T18:47:24.561Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/HomeTest.java",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/HomeTest.java",
+          "content": "// Project: JavaSelenium\npackage JavaSelenium.tests;\n\nimport JavaSelenium.pages.LoginPage;\nimport JavaSelenium.pages.HomePage;\nimport org.junit.After;\nimport org.junit.Before;\nimport org.junit.Test;\nimport org.openqa.selenium.WebDriver;\nimport org.openqa.selenium.chrome.ChromeDriver;\n\nimport static org.junit.Assert.*;\n\npublic class HomeTest {\n    WebDriver driver;\n    LoginPage loginPage;\n    HomePage homePage;\n\n    @Before\n    public void setUp() {\n        System.setProperty(\"webdriver.chrome.driver\", \"path/to/chromedriver\");\n        driver = new ChromeDriver();\n        driver.get(\"https://www.saucedemo.com\");\n        loginPage = new LoginPage(driver);\n        homePage = new HomePage(driver);\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n    }\n\n    @Test\n    public void testProductPageAccess() {\n        // Test to access product page after login\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @After\n    public void tearDown() {\n        driver.quit();\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/tests/HomeTest.java"
     }
   ]
 }

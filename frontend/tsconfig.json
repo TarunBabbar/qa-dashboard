@@ -22,7 +22,9 @@
   "include": [
     "next-env.d.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "frontend",
+    "frontend/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules"

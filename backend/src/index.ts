@@ -3,6 +3,38 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import OpenAI from "openai";
+
+
+const router = express.Router();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const aiModel = process.env.OPENAI_MODEL!;
+
+router.post("/agent-brief", async (req, res) => {
+  const { prompt } = req.body ?? {};
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const stream = await openai.chat.completions.create({
+    model: aiModel,
+    stream: true,
+    messages: [
+      { role: "system", content:
+        "You are a brisk, friendly test-planner. Acknowledge the request, restate it crisply, list the plan in bullets, set expectations. Keep it short, use emojis sparingly (✅, 🔧, ⏱️), no code." },
+      { role: "user", content: prompt }
+    ],
+  });
+
+  for await (const part of stream) {
+    const token = part.choices?.[0]?.delta?.content ?? "";
+    if (token) res.write(`data:${token}\n\n`);
+  }
+  res.write("data:[DONE]\n\n");
+  res.end();
+});
+
+export default router;
 
 // OpenAI runtime loader (single instance)
 let openaiClient: any;
@@ -75,6 +107,7 @@ const port: number = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 app.use(cors());
+app.use("/api/ai", router); 
 
 const dataDir = path.resolve(__dirname, '../../data');
 const projectsPath = path.join(dataDir, 'projects.json');
@@ -225,6 +258,7 @@ app.delete('/api/projects/:id/files/*', (req: Request, res: Response) => {
 });
 
 // AI generation endpoint
+// AI generation endpoint
 app.post('/api/ai/generate-code', async (req: Request, res: Response) => {
   const { projectId, tool, language, prompt } = req.body as any;
   if (!process.env.OPENAI_API_KEY) {
@@ -239,18 +273,34 @@ app.post('/api/ai/generate-code', async (req: Request, res: Response) => {
         throw new Error('OpenAI client not initialized');
       }
     }
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const systemPrompt = `You are a senior software engineer and test automation architect. When given a user scenario, produce a complete, ready-to-run UI automation project code for the requested tool and language. Follow SOLID principles and Page Object Model: separate page classes and test cases. Organize files and folders appropriately. Ensure code compiles and runs without errors. IMPORTANT: always include any package manifest or dependency files required to install and run the project (for example: Node/npm -> package.json, pnpm-lock.json; Python -> requirements.txt or pyproject.toml; Java -> pom.xml or build.gradle).
+    const model = process.env.OPENAI_MODEL;
 
-  File placement rules:
-  - All UI page or route files that belong in the web app's pages/layouts should be returned under paths that start with 'pages/' (for example: 'pages/loginpage.tsx', 'pages/account/settings.tsx').
-  - All automated test specs should be returned under paths that start with 'tests/' (or 'tests/<tool>/') and use clear naming like 'tests/loginspec.ts' or 'tests/login.spec.ts' depending on the tool conventions. If the tool is Playwright or Playwright Test, prefer 'tests/<name>.spec.ts' or 'tests/<name>.test.ts'; if Playwright with a 'tests/' folder, keep it there. For Playwright projects include a 'playwright.config.ts' under the project root.
-  - Page component files that are part of the frontend (React/Next.js or similar) must go under 'pages/' or 'src/pages/' depending on the project's usual structure — prefer 'pages/' if unsure.
-  - Support files (page objects, helpers, fixtures) may go under 'src/', 'lib/', or 'tests/helpers/' but avoid placing test specs outside 'tests/'.
+    const systemPrompt = `You are a senior software engineer and test automation architect. When given a user scenario, produce a complete, ready-to-run UI automation project for the requested tool and language. Follow SOLID and Page Object Model: separate page classes and test cases. Organize files and folders appropriately. Ensure code compiles and runs without errors. IMPORTANT: always include any package manifest or dependency files required to install and run the project (for example: Node/npm -> package.json and lockfile; Python -> requirements.txt or pyproject.toml; Java -> pom.xml or build.gradle).
 
-  Return only a single JSON array value (no extra text) in the following shape: [{ "path": "relative/path/to/file.ext", "content": "<file contents>" }]. Use UTF-8, escape newlines properly in JSON strings. Use realistic package/dependency snippets and small README and tests where appropriate.`; 
+File placement rules (MANDATORY):
+- All UI page or route files MUST be under: 'src/pages/...'
+- All automated test specs MUST be under: 'src/tests/...'
+  • Use clear names and standard patterns, e.g. 'src/tests/login.spec.ts', 'src/tests/cart.test.ts'
+  • Follow the tool's conventions (Playwright: *.spec.ts or *.test.ts)
+- All support code (page objects, helpers, utilities, fixtures) MUST live under: 'src/helpers', 'src/utils', or 'src/lib' (choose the most appropriate)
+  • Do NOT place test specs outside 'src/tests'
+- Tool configs (e.g., 'playwright.config.ts', 'jest.config.ts') and project configs go at the project ROOT unless the tool requires another location
+- Project manifests and lock/build files go at the project ROOT:
+  • Node: 'package.json', lockfile
+  • Python: 'requirements.txt' or 'pyproject.toml'
+  • Java: 'pom.xml' or 'build.gradle'
 
-    const userPrompt = `Project: ${projectId}\nTool: ${tool}\nLanguage: ${language}\nScenario: ${prompt ?? ''}\nRequirements: produce runnable code, Page Object Model, SOLID design, clear folder structure, and include any package manifest or build scripts needed to run tests. Output MUST be a single JSON array as described.`;
+Return only a single JSON array value (no extra text) of the shape:
+[
+  { "path": "relative/path/to/file.ext", "content": "<file contents>" }
+]
+Use UTF-8. Escape newlines properly in JSON strings. Include realistic package/dependency snippets and a small README when appropriate.`;
+
+    const userPrompt = `Project: ${projectId}
+Tool: ${tool}
+Language: ${language}
+Scenario: ${prompt ?? ''}
+Requirements: produce runnable code, Page Object Model, SOLID design, clear folder structure per the rules above, and include any package manifest or build scripts needed to run tests. Output MUST be a single JSON array as described.`;
 
     // Support both OpenAIApi (createChatCompletion) and the newer OpenAI client (chat.completions.create)
     let content = '';
@@ -275,6 +325,7 @@ app.post('/api/ai/generate-code', async (req: Request, res: Response) => {
     } else {
       throw new Error('Unsupported OpenAI client');
     }
+
     generatedCode = (content || `[]`).trim();
   } catch (err) {
     const message = (err as Error).message;
@@ -286,6 +337,7 @@ app.post('/api/ai/generate-code', async (req: Request, res: Response) => {
 
   res.json({ projectId, tool, language, generatedCode, promptUsed: prompt });
 });
+
 
 // Apply generated code to project (Agent action). This will snapshot existing files and
 // write new/updated files into the project. Returns a revertId that can be used to undo.

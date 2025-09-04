@@ -304,3 +304,8 @@ kbd {
 
 .action-icon:active { transform: translateY(0); }
 .action-icon:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.35); }
+
+.code-copy-button[data-copied="true"] {
+  background: #16a34a !important; /* green */
+}
+.theme-dark .assistant-msg pre { color: #e5e7eb; }
