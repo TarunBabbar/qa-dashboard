@@ -55,7 +55,7 @@ const ProjectsPage: NextPage<Props> = ({ projects }) => {
                 <div className={styles.cardActions}>
                   <Link href={`/ide?projectId=${encodeURIComponent(p.id)}`} className={styles.editLink}>Open IDE</Link>
                   <Link href={`/projects/${p.id}/edit`} className={styles.editLink}>Edit</Link>
-                  
+                  <span>⋮</span>
                 </div>
               </div>
 

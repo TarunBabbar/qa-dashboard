@@ -1,3 +1,5 @@
+// Ensure Node.js types are available for process.env
+/// <reference types="node" />
 import { ApiResponse, Framework, FrameworkCreatePayload, PassRatePoint, Project, ReportSummary, TestRunSummary } from './types';
 
 // Generic fetch wrapper (can evolve: auth headers, error normalization, retry logic)
@@ -20,7 +22,8 @@ export async function listProjects(): Promise<ApiResponse<Project[]>> {
   try {
     const res = await fetch('/api/projects');
     const json = await res.json();
-    return { data: json.data };
+    const data = json?.projects ?? json?.data ?? (Array.isArray(json) ? json : []);
+    return { data };
   } catch (e: any) {
     return { data: [], error: e.message };
   }
@@ -30,7 +33,8 @@ export async function getProject(id: string): Promise<ApiResponse<Project>> {
   try {
     const res = await fetch(`/api/projects/${id}`);
     const json = await res.json();
-    return { data: json.data };
+    const data = json?.data ?? json?.project ?? json;
+    return { data };
   } catch (e: any) {
     return { data: undefined as unknown as Project, error: e.message };
   }
@@ -40,7 +44,8 @@ export async function createProject(payload: Partial<Project>): Promise<ApiRespo
   try {
     const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const json = await res.json();
-    return { data: json.data };
+    const data = json?.data ?? json?.project ?? json;
+    return { data };
   } catch (e: any) {
     return { data: undefined as unknown as Project, error: e.message };
   }
@@ -91,7 +96,12 @@ export async function getPassRateTrend(period = '30d'): Promise<ApiResponse<Pass
 export { apiFetch };
 
 // AI assistant helpers
-export const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+// Backend base URL must come from environment to avoid hardcoded values in code.
+// Prefer NEXT_PUBLIC_BACKEND_URL set in the environment (Next.js exposes NEXT_PUBLIC_* to the browser).
+export const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL;
+if (!backendBase) {
+  console.warn('NEXT_PUBLIC_BACKEND_URL is not set. Please configure it in your .env file.');
+}
 
 export async function generateAICode(projectId: string, tool: string, language: string, prompt: string) {
   const res = await fetch(`${backendBase}/api/ai/generate-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, tool, language, prompt }) });

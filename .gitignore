@@ -33,10 +33,18 @@ frontend/.vercel/
 # Tailwind / PostCSS cache
 frontend/.tailwindcache/
 
+# Ignore data files
+frontend/data/
+frontend/.env
+
 # --- Backend (TypeScript build) ---
 backend/dist/
 backend/tsconfig.tsbuildinfo
 backend/*.tsbuildinfo
+
+# Ignore data files
+backend/data/
+backend/.env
 
 # Coverage / reports
 coverage/
@@ -63,3 +71,6 @@ logs/
 # Git merge artifacts
 *.orig
 data/projects.json
+
+# Ignore data folder
+/data/

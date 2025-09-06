@@ -103,9 +103,11 @@ pre[class*="language-"][style] { background: var(--vscode-panel) !important; }
   font-size: 13px;
   line-height: 1.5;
   height: 100%;
-  overflow: auto;
+  overflow: auto !important; 
   background: transparent !important;
   background-color: transparent !important;
+  overflow: auto !important;
+  position: relative !important;
 }
 .react-simple-code-editor pre,
 .react-simple-code-editor textarea,
@@ -119,7 +121,8 @@ pre[class*="language-"][style] { background: var(--vscode-panel) !important; }
 .editor-pre {
   margin: 0 !important;
   min-height: 100% !important;
-  overflow: auto !important;
+  /* Important: the scroll should be on the editor container, not the <pre> layer. */
+  overflow: visible !important;
 }
 .editor {
   outline: none;
@@ -254,6 +257,31 @@ kbd {
   background-clip: padding-box;
 }
 
+/* Fix: ensure clicks go to the textarea, not the syntax layer */
+.code-panel .react-simple-code-editor pre {
+  pointer-events: none !important; /* allow selection caret via textarea underneath */
+  margin: 0 !important;
+  background: transparent !important;
+}
+.code-panel .react-simple-code-editor textarea {
+  pointer-events: auto !important;
+   min-height: 100% !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: absolute !important;  /* sits above <pre> */
+  z-index: 1 !important;
+
+  top: 0;
+  left: 0;
+
+  /* 👇 critical fix */
+  height: 100% !important;
+
+  resize: none !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
 /* Some browsers apply an inner focus border to textareas */
 .code-panel textarea::-moz-focus-inner {
   border: 0 !important;
@@ -309,3 +337,35 @@ kbd {
   background: #16a34a !important; /* green */
 }
 .theme-dark .assistant-msg pre { color: #e5e7eb; }
+
+.react-simple-code-editor textarea {
+  position: absolute !important;
+  top: 0; left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  resize: none !important;
+  z-index: 1 !important;
+  background: transparent !important;
+  color: inherit !important;
+  pointer-events: auto !important;
+}
+
+.code-panel .react-simple-code-editor {
+  position: relative !important;
+  overflow: auto !important;
+}
+
+.code-editor-textarea {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  resize: none !important;
+  background: transparent !important;
+  color: inherit !important;
+  z-index: 1 !important;
+  pointer-events: auto !important;
+}

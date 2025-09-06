@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import React from "react";
-const SplitPane = require('react-split-pane').default;
+import Split from 'react-split';
 import { getProject, backendBase } from '../lib/api';
 import Editor from "react-simple-code-editor";
 import Highlight, { defaultProps, Language } from "prism-react-renderer";
@@ -15,6 +15,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import Prism from "prism-react-renderer/prism";
+import Editor1 from "@monaco-editor/react";
+
+
+
 (globalThis as any).Prism = Prism;
 require("prismjs/components/prism-csharp");
 require("prismjs/components/prism-java");
@@ -103,6 +107,34 @@ function normalizeLang(lang?: string): Language {
   if (L === 'js' || L === 'jsx') return 'javascript' as Language;
   if (L === 'html') return 'markup' as Language;
   return (L as Language);
+}
+
+// --- Robust JSON files extraction ---
+function coerceFilesArray(val: any): { path: string; content: string }[] {
+  const isRec = (x: any) => x && typeof x === 'object' && typeof x.path === 'string' && typeof x.content === 'string';
+  if (Array.isArray(val)) return val.filter(isRec);
+  if (val && Array.isArray((val as any).files)) return (val as any).files.filter(isRec);
+  return [];
+}
+
+function tryParseJsonArrayLoose(raw: string): { path: string; content: string }[] {
+  // 1) direct parse
+  try { const j = JSON.parse(raw); const arr = coerceFilesArray(j); if (arr.length) return arr; } catch {}
+  // 2) fenced ```json blocks
+  const fence = raw.match(/```json[\s\S]*?```/i) || raw.match(/```[\s\S]*?```/);
+  if (fence) {
+    const inner = fence[0].replace(/```json|```/gi, '').trim();
+    try { const j = JSON.parse(inner); const arr = coerceFilesArray(j); if (arr.length) return arr; } catch {}
+  }
+  // 3) slice first [ ... ] that looks like JSON array
+  const firstIdx = raw.indexOf('[');
+  const lastIdx = raw.lastIndexOf(']');
+  if (firstIdx !== -1 && lastIdx !== -1 && lastIdx > firstIdx) {
+    const slice = raw.slice(firstIdx, lastIdx + 1);
+    try { const j = JSON.parse(slice); const arr = coerceFilesArray(j); if (arr.length) return arr; } catch {}
+  }
+  // 4) nothing workable
+  return [];
 }
 
 function CodeBlock({
@@ -1129,7 +1161,7 @@ const confirmDelete = async () => {
       case 'yaml':
         return 'yaml' as unknown as Language;
       default:
-        return 'javascript';
+        return 'javascript' as Language;
     }
   }
 
@@ -1545,7 +1577,16 @@ const askPrompt = [
     const json = await res.json();
     const content = json.generatedCode ?? json.generated ?? json;
     let parsed: { path: string; content: string }[] = [];
-    try { parsed = typeof content === "string" ? JSON.parse(content) : content; } catch {}
+    try {
+      if (Array.isArray(content)) {
+        parsed = coerceFilesArray(content);
+      } else if (typeof content === 'string') {
+        // attempt strict then loose parsing
+        try { parsed = JSON.parse(content); } catch { parsed = tryParseJsonArrayLoose(content); }
+      } else if (content && typeof content === 'object') {
+        parsed = coerceFilesArray(content);
+      }
+    } catch {}
 
     setAiFiles(parsed || []);
     setCodeReady(true);
@@ -1664,7 +1705,7 @@ const askPrompt = [
       <main className={`app-root ide-page w-full ${lightMode ? 'theme-light bg-slate-50' : 'theme-dark'}`} style={{ background: lightMode ? undefined : 'var(--vscode-bg)' }}>
         <div className={`${lightMode ? 'bg-white border-b border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'} flex-shrink-0 px-6 py-3`}>
           <div className="max-w-[1100px] mx-auto flex items-center justify-between">
-            <h1 className={`text-2xl font-semibold ${lightMode ? 'text-slate-800' : 'text-[var(--vscode-text)]'}`}>IDE & AI Assistance</h1>
+            <h1 className={`text-2xl font-semibold ${lightMode ? 'text-slate-800' : 'text-white'}`}>IDE & AI Assistance</h1>
             <div className="flex items-center gap-2">
               <button disabled 
               // onClick={() => setLightMode(l => !l)} 
@@ -1674,9 +1715,25 @@ const askPrompt = [
         </div>
 
         <div className="flex-1 relative min-h-0">
-          <SplitPane split="vertical" minSize={200} defaultSize={280} className="absolute inset-0 h-full w-full" paneStyle={{ height: '100%' }}>
+          <Split
+            sizes={[25, 75]}
+            minSize={[200, 0]}
+            expandToMin={false}
+            gutterSize={10}
+            gutterAlign="center"
+            snapOffset={30}
+            dragInterval={1}
+            direction="horizontal"
+            cursor="col-resize"
+            className="split absolute inset-0 h-full w-full"
+            style={{ height: '100%' }}
+          >
             {/* Explorer */}
-            <div className={`h-full flex-shrink-0 overflow-hidden ${lightMode ? 'bg-white border-r border-slate-200' : 'border-r border-slate-700/40'}`} aria-label="file-explorer" style={{ background: lightMode ? undefined : 'var(--vscode-panel)' }}>
+            <div
+              className={`h-full flex-shrink-0 overflow-hidden ${lightMode ? 'bg-white border-r border-slate-200' : 'border-r border-slate-700/40'} min-w-[200px]`}
+              aria-label="file-explorer"
+              style={{ background: lightMode ? undefined : 'var(--vscode-panel)', minWidth: 200 }}
+            >
               <div className={`h-full overflow-y-auto custom-scroll p-3 min-h-0 pb-24`}>
                 <div className={`flex items-center justify-between px-4 h-11 border-b ${lightMode ? 'border-slate-200' : 'border-slate-700/50'} bg-transparent rounded-t-md`}>
                   <div className="flex items-center gap-2 text-xs font-semibold tracking-wider">
@@ -1750,9 +1807,24 @@ const askPrompt = [
               </div>
 
               {/* Code view + Assistant */}
-              <SplitPane split="vertical" minSize={300} defaultSize="60%" pane1Style={{ borderRight: lightMode ? '1px solid #e5e7eb' : '1px solid var(--vscode-border)'}} paneStyle={{ height: '100%' }}>
+              <Split
+                sizes={[60, 40]}
+                minSize={[200, 200]}
+                expandToMin={false}
+                gutterSize={10}
+                gutterAlign="center"
+                snapOffset={30}
+                dragInterval={1}
+                direction="horizontal"
+                cursor="col-resize"
+                className="split h-full w-full"
+                style={{ height: '100%' }}
+              >
                 {/* Code panel */}
-                <div className={`flex-1 h-full flex flex-col overflow-hidden ${lightMode ? 'bg-white border-r border-slate-200 shadow-sm' : 'border-r border-slate-700/40'}`} style={{ background: lightMode ? undefined : 'var(--vscode-panel)' }}>
+                <div
+                  className={`h-full flex-none flex-shrink-0 flex flex-col overflow-hidden ${lightMode ? 'bg-white border-r border-slate-200 shadow-sm' : 'border-r border-slate-700/40'} min-w-[260px] code-panel`}
+                  style={{ background: lightMode ? undefined : 'var(--vscode-panel)', minWidth: 260, position: 'relative' }}
+                >
                   <div className={`mb-0 ${lightMode ? 'bg-white/90 backdrop-blur border-slate-200 border-b' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'}`}>
                     <div className="flex items-center justify-between px-4 h-11 gap-4">
                       <div className="flex overflow-x-auto flex-1">
@@ -1805,7 +1877,7 @@ const askPrompt = [
 
                         <button
                           onClick={handleSave}
-                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
                             lightMode
                               ? "bg-blue-600 hover:bg-blue-700 text-white"
                               : "bg-blue-500 hover:bg-blue-400 text-[var(--vscode-text)]"
@@ -1819,7 +1891,7 @@ const askPrompt = [
 
                   <div className="flex-1 min-h-0 overflow-hidden">
                     {activeFile ? (
-                      <div className="h-full min-h-0 overflow-hidden code-panel">
+                      <div className="h-full w-full overflow-auto relative">
                         <Editor
                           value={activeFile?.content ?? ""}
                           onValueChange={(code) => {
@@ -1841,7 +1913,7 @@ const askPrompt = [
                               {({ className, style, tokens, getLineProps, getTokenProps }) => (
                                 <pre
                                   className={`${className} editor-pre`}
-                                  style={{ ...style, margin: 0, background: 'transparent', backgroundColor: 'transparent', border: 'none',boxShadow: 'none',borderRadius: 0 }}
+                                  style={{ ...style, margin: 0, background: 'transparent', backgroundColor: 'transparent', border: 'none',boxShadow: 'none',borderRadius: 0, overflow: "visible" }}
                                 >
                                   {tokens.map((line, i) => (
                                     <div key={i} {...getLineProps({ line })}>
@@ -1856,17 +1928,22 @@ const askPrompt = [
                           )}
                           padding={12}
                           className="w-full h-full font-mono text-sm"
+                          textareaId="code-editor-textarea"
+                          textareaClassName="code-editor-textarea"
                           style={{
                             minHeight: "100%",
+                            height: "auto",
                             outline: "none",
                             overflow: "auto",
                             background: lightMode ? "#ffffff" : "var(--vscode-panel)",
-                            caretColor: lightMode ? "#000" : "#fff", // white caret in dark
+                            caretColor: lightMode ? "#000" : "#fff", //Message… (Shift+Enter for newline) white caret in dark
                             border: 'none',
                             boxShadow: 'none',
-                            borderRadius: 0
+                            borderRadius: 0,
+                            paddingBottom: "60px"
                           }}
                         />
+                        <div style={{ height: "60px" }} /> {/* 👈 bottom spacer */}
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -1880,12 +1957,12 @@ const askPrompt = [
 
                 {/* Assistant panel */}
                 <div
-                  className={`h-full flex-shrink-0 flex flex-col transition-colors duration-300 ai-assistant-panel ${
+                  className={`h-full flex-none flex-shrink-0 flex flex-col transition-colors duration-300 ai-assistant-panel ${
                     lightMode
                       ? 'bg-white border-l border-slate-200 shadow-sm'
                       : 'bg-[var(--vscode-bg)] border-l border-[var(--vscode-border)]'
                   }`}
-                  style={{ position: 'relative', minHeight: 0, overflow: 'hidden', width: '100%' }}
+                  style={{ position: 'relative', minHeight: 0, overflow: 'hidden' }}
                 >
                   <div className={`flex items-center justify-between px-4 py-3 border-b flex-shrink-0 ${lightMode ? 'bg-white border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'}`}>
                     <div className="flex items-center gap-2">
@@ -1993,7 +2070,8 @@ const askPrompt = [
 
                   {/* ChatGPT-style input area */}
                   <div
-                    className={`flex-shrink-0 border-t ${lightMode ? 'bg-gray-50 border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'} sticky bottom-3`}
+                    className={`flex-shrink-0 border-t ${lightMode ? 'bg-gray-50 border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'} mb-5`}
+                    style={{ position: 'relative', zIndex: 1 }}
                   >
                     <div className="mx-auto max-w-3xl w-full px-3 sm:px-4 py-3">
                       <div
@@ -2091,8 +2169,8 @@ const askPrompt = [
                     </div>
                   </div>
                 </div>
-              </SplitPane>
-            </SplitPane>
+              </Split>
+            </Split>
           </div>
           {/* Context menu */}
           {ctxMenu && (
@@ -2366,7 +2444,17 @@ const askPrompt = [
           main.app-root, .SplitPane, .Pane { min-height: 0; }
           .SplitPane { position: absolute !important; top: 0; left: 0; height: 100% !important; width: 100% !important; }
           .Pane { height: 100% !important; }
+
+          /* react-split (Split.js) support */
+          .split { height: 100% !important; width: 100% !important; display: flex; }
+          .split > div { height: 100%; min-height: 0; min-width: 0; position: relative; }
+          /* Removed global pointer-event guards to avoid side effects */
+          .gutter { background: transparent !important; z-index: 10; position: relative; pointer-events: auto; }
+          .gutter:hover { background: #94a3b8; }
+          .gutter.gutter-horizontal { width: 10px; cursor: col-resize; }
+          .gutter.gutter-vertical { height: 10px; cursor: row-resize; }
           
+          /* legacy react-split-pane support (safe to keep) */
           .Resizer { background: transparent !important; z-index: 1400; position: relative; pointer-events: auto;}
           .Resizer:hover { background: #94a3b8; }
           .Resizer.vertical { width: 2px; background: transparent !important; margin: 0 -1px; cursor: col-resize; }
@@ -2378,7 +2466,7 @@ const askPrompt = [
           ::-webkit-scrollbar-thumb { background: ${'${lightMode ? "#cbd5e1" : "linear-gradient(135deg, #3b82f6, #8b5cf6)"}'}; border-radius: 4px; }
           ::-webkit-scrollbar-thumb:hover { background: ${'${lightMode ? "#94a3b8" : "linear-gradient(135deg, #2563eb, #7c3aed)"}'}; }
 
-          .ai-assistant-panel { -ms-overflow-style: none; scrollbar-width: none; overflow: hidden; width: 100%; max-width: 100%; }
+          .ai-assistant-panel { -ms-overflow-style: none; scrollbar-width: none; overflow: hidden; contain: layout paint; clip-path: inset(0); }
           .ai-assistant-panel .chat-scroll { box-sizing: border-box; width: 100%; max-width: 100%; }
           .ai-assistant-panel * { max-width: 100%; box-sizing: border-box; }
 
@@ -2485,6 +2573,18 @@ const askPrompt = [
                   background: rgba(148,163,184,.15);
                 }
                 .ctx-item.danger { color:#dc2626; }
+
+                /* Keep editor layout simple: rely on defaults from react-simple-code-editor */
+                .code-panel { height: 100%; min-height: 0; }
+                .code-panel .react-simple-code-editor { height: 100%; }
+
+                /* Lower the assistant panel stacking to avoid overlap across panes */
+                .ai-assistant-panel {
+                  position: relative;
+                  z-index: 1;
+                  overflow: hidden;
+                  contain: layout paint; /* confine layout/paint to this pane */
+                }
 
 
 

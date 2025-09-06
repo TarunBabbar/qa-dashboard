@@ -210,6 +210,101 @@
         }
       ],
       "updatedAt": "2025-09-04T06:29:33.392Z"
+    },
+    {
+      "id": "proj-1757063951360",
+      "name": "CharpSelenium",
+      "testSuite": "Regression",
+      "language": "C#",
+      "frameworkType": "UI",
+      "tools": [
+        "Selenium"
+      ],
+      "createdAt": "2025-09-05T09:19:09.550Z",
+      "frameworkIds": [],
+      "files": [
+        {
+          "path": "CharpSelenium.csproj",
+          "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net6.0</TargetFramework>\n    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.5.0\" />\n    <PackageReference Include=\"Selenium.WebDriver.ChromeDriver\" Version=\"113.0.5672.63\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"3.17.0\" />\n  </ItemGroup>\n</Project>"
+        },
+        {
+          "path": "src/pages/LoginPage.cs",
+          "content": "// Project: CharpSelenium\nusing OpenQA.Selenium;\nusing OpenQA.Selenium.Support.UI;\n\nnamespace CharpSelenium\n{\n    public class LoginPage\n    {\n        private readonly IWebDriver _driver;\n        private readonly WebDriverWait _wait;\n\n        public LoginPage(IWebDriver driver)\n        {\n            _driver = driver;\n            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));\n        }\n\n        public void EnterUsername(string username)\n        {\n            var usernameField = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"user-name\")));\n            usernameField.Clear();\n            usernameField.SendKeys(username);\n        }\n\n        public void EnterPassword(string password)\n        {\n            var passwordField = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"password\")));\n            passwordField.Clear();\n            passwordField.SendKeys(password);\n        }\n\n        public void ClickLogin()\n        {\n            var loginButton = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"login-button\")));\n            loginButton.Click();\n        }\n\n        public string GetErrorMessage()\n        {\n            return _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(By.CssSelector(\"h3[data-test='error']\"))).Text;\n        }\n    }\n}"
+        },
+        {
+          "path": "src/tests/LoginTests.cs",
+          "content": "// Project: CharpSelenium\nusing NUnit.Framework;\nusing OpenQA.Selenium;\nusing OpenQA.Selenium.Chrome;\n\nnamespace CharpSelenium\n{\n    public class LoginTests\n    {\n        private IWebDriver _driver;\n        private LoginPage _loginPage;\n\n        [SetUp]\n        public void Setup()\n        {\n            _driver = new ChromeDriver();\n            _driver.Navigate().GoToUrl(\"http://www.saucedemo.com\");\n            _loginPage = new LoginPage(_driver);\n        }\n\n        [TearDown]\n        public void Teardown()\n        {\n            _driver.Quit();\n        }\n\n        [Test]\n        public void PositiveLoginTest()\n        {\n            _loginPage.EnterUsername(\"standard_user\");\n            _loginPage.EnterPassword(\"secret_sauce\");\n            _loginPage.ClickLogin();\n\n            Assert.IsTrue(_driver.Url.Contains(\"inventory.html\"));\n        }\n\n        [Test]\n        public void NegativeLoginUsernameTest()\n        {\n            _loginPage.EnterUsername(\"invalid_user\");\n            _loginPage.EnterPassword(\"secret_sauce\");\n            _loginPage.ClickLogin();\n\n            Assert.AreEqual(\"Username and password do not match any user in this service\", _loginPage.GetErrorMessage());\n        }\n\n        [Test]\n        public void NegativeLoginPasswordTest()\n        {\n            _loginPage.EnterUsername(\"standard_user\");\n            _loginPage.EnterPassword(\"wrong_password\");\n            _loginPage.ClickLogin();\n\n            Assert.AreEqual(\"Username and password do not match any user in this service\", _loginPage.GetErrorMessage());\n        }\n    }\n}"
+        },
+        {
+          "path": "README.md",
+          "content": "# CharpSelenium\n\n## Overview\nCharpSelenium is a simple Selenium WebDriver project in C# for automating test cases on the Sauce Demo website. This project demonstrates positive and negative test scenarios for user login.\n\n## Getting Started\n\n### Prerequisites\n- .NET 6 SDK\n- Visual Studio or any compatible IDE\n\n### Installation\n1. Clone the repository:\n   ```bash\n   git clone <repository-url>\n   cd CharpSelenium\n   ```\n2. Restore the dependencies:\n   ```bash\n   dotnet restore\n   ```\n3. Run Tests:\n   ```bash\n   dotnet test\n   ```\n\n## Test Cases\n- **Positive Test Case:** Valid user login.\n- **Negative Test Cases:** Invalid username and invalid password.\n"
+        }
+      ],
+      "updatedAt": "2025-09-06T03:45:49.501Z"
+    },
+    {
+      "id": "proj-1757145528791",
+      "name": "Tarun Testing",
+      "testSuite": "Smoke Test",
+      "language": "Python",
+      "frameworkType": "UI Testing",
+      "tools": [
+        "Selenium"
+      ],
+      "createdAt": "2025-09-06T07:58:48.731Z",
+      "frameworkIds": []
+    },
+    {
+      "id": "proj-1757145570143",
+      "name": "TarunTesting",
+      "testSuite": "Smoke Test",
+      "language": "Python",
+      "frameworkType": "UI Testing",
+      "tools": [
+        "Selenium"
+      ],
+      "createdAt": "2025-09-06T07:59:30.116Z",
+      "frameworkIds": []
+    },
+    {
+      "id": "proj-1757146035528",
+      "name": "CSharpUnitTests",
+      "testSuite": "Integration",
+      "language": "C# / .NET",
+      "frameworkType": "API Testing",
+      "tools": [
+        "RestSharp"
+      ],
+      "createdAt": "2025-09-06T08:07:15.092Z",
+      "frameworkIds": [],
+      "description": "CSharpUnitTests",
+      "files": [
+        {
+          "path": "CSharpUnitTests/CSharpUnitTests.csproj",
+          "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net6.0</TargetFramework>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <Nullable>enable</Nullable>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"RestSharp\" Version=\"108.0.2\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.2.0\" />\n    <PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17.2.0\" />\n  </ItemGroup>\n\n</Project>\n"
+        },
+        {
+          "path": "src/tests/ApiTests.cs",
+          "content": "// Project: CSharpUnitTests\nusing NUnit.Framework;\nusing RestSharp;\n\nnamespace CSharpUnitTests\n{\n    public class ApiTests\n    {\n        private const string BaseUrl = \"https://api.restful-api.dev/objects\";\n\n        [Test]\n        public void Test_GetObjects_ReturnsSuccess()\n        {\n            var client = new RestClient(BaseUrl);\n            var request = new RestRequest(Method.GET);\n\n            var response = client.Execute(request);\n\n            Assert.That(response.IsSuccessful, Is.True, \"Expected a successful response from the GET API\");\n            Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), \"Expected HTTP status code 200\");\n            Assert.That(response.Content, Is.Not.Empty, \"Expected non-empty response content\");\n        }\n    }\n}\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# CSharpUnitTests\n\nThis project demonstrates a simple API test using RestSharp in C#/.NET.\n\n## Setup\n\n1. Ensure you have .NET 6.0 SDK installed.\n2. Restore dependencies and build the project:\n\n```shell\ncd CSharpUnitTests\n dotnet restore\n dotnet build\n```\n\n## Running Tests\n\nExecute the tests using the `dotnet test` command:\n\n```shell\ndotnet test\n```\n\nThis will run the API tests for the RESTful API.\n"
+        }
+      ],
+      "updatedAt": "2025-09-06T08:39:31.919Z"
+    },
+    {
+      "id": "proj-1757151715951",
+      "name": "temp",
+      "testSuite": "Integration",
+      "language": "C# / .NET",
+      "frameworkType": "BDD",
+      "tools": [
+        "SpecFlow"
+      ],
+      "createdAt": "2025-09-06T09:41:55.808Z",
+      "frameworkIds": []
     }
   ]
 }

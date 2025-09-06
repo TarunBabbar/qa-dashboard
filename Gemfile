@@ -1,0 +1,13 @@
+source 'https://rubygems.org'
+
+gem 'rspec', '3.12.0'
+gem 'minitest', '5.20.0'
+gem 'cucumber', '9.0.1'
+gem 'capybara', '3.39.2'
+gem 'watir', '7.2.2'
+gem 'httparty', '0.21.0'
+gem 'faraday', '2.7.12'
+gem 'airborne', '0.3.7'
+gem 'pact', '1.64.0'
+gem 'vcr', '6.2.0'
+gem 'webmock', '3.19.1'

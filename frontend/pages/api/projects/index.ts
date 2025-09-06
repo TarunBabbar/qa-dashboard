@@ -29,7 +29,7 @@ function writeProjects(arr: Project[]) {
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const projects = readProjects();
-    return res.status(200).json({ data: projects });
+    return res.status(200).json({ projects: projects });
   }
 
   if (req.method === 'POST') {
@@ -48,7 +48,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     };
     projects.push(newP);
     writeProjects(projects);
-    return res.status(201).json({ data: newP });
+    return res.status(201).json({ project: newP });
   }
 
   res.setHeader('Allow', ['GET','POST']);

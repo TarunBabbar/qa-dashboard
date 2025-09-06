@@ -2,6 +2,7 @@
 import type { GetServerSideProps, NextPage } from 'next';
 import Link from 'next/link';
 import React from 'react';
+import { backendBase } from '../../../../lib/api';
 
 type FileEditorProps = { projectId: string; path: string; content: string };
 
@@ -11,7 +12,8 @@ export const getServerSideProps: GetServerSideProps<{ projectId: string; path: s
   let content = '';
   if (id && filePath) {
     try {
-      const res = await fetch(`http://localhost:3000/api/projects/${id}/files/${encodeURIComponent(filePath)}`);
+      const base = process.env.NEXT_PUBLIC_BACKEND_URL || backendBase;
+      const res = await fetch(`${base}/api/projects/${id}/files/${encodeURIComponent(filePath)}`);
       if (res.ok) {
         const data = await res.json();
         content = data.content ?? '';

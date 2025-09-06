@@ -16,18 +16,22 @@ const EditProject: NextPage<Props> = ({ id }) => {
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState('');
   const [testSuite, setTestSuite] = useState('');
+  const [frameworkIds, setFrameworkIds] = useState<string[]>([]);
+  const [tools, setTools] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
     getProject(id).then(res => {
       if (!mounted) return;
       if (res?.data) {
-  setName(res.data.name || '');
-  setDescription((res.data as any).description || '');
-  // handle older shape where languages may be an array under a different key
-  const lang = (res.data as any).language || ((res.data as any).languages ? (res.data as any).languages[0] : '');
-  setLanguage(lang);
-  setTestSuite(res.data.testSuite || '');
+        setName(res.data.name || '');
+        setDescription((res.data as any).description || '');
+        // handle older shape where languages may be an array under a different key
+        const lang = (res.data as any).language || ((res.data as any).languages ? (res.data as any).languages[0] : '');
+        setLanguage(lang);
+        setTestSuite(res.data.testSuite || '');
+        setFrameworkIds(res.data.frameworkIds || []);
+        setTools(res.data.tools || []);
       }
       setLoading(false);
     });
@@ -38,7 +42,7 @@ const EditProject: NextPage<Props> = ({ id }) => {
     e?.preventDefault();
     setMessage(null);
     setSaving(true);
-    const patch = { name, description, language, testSuite } as any;
+    const patch = { name, description, language, testSuite, frameworkIds, tools } as any;
     const res = await updateProject(id, patch);
     if (res?.data) {
       setMessage('Project updated');
@@ -77,6 +81,22 @@ const EditProject: NextPage<Props> = ({ id }) => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Test Suite</label>
                 <input value={testSuite} onChange={e => setTestSuite(e.target.value)} className="w-full border rounded px-3 py-2" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Framework</label>
+                <select multiple value={frameworkIds} onChange={e => setFrameworkIds(Array.from(e.target.selectedOptions, option => option.value))} className="w-full border rounded px-3 py-2">
+                  {/* Options should be populated based on available frameworks */}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tools</label>
+                <select multiple value={tools} onChange={e => setTools(Array.from(e.target.selectedOptions, option => option.value))} className="w-full border rounded px-3 py-2">
+                  {/* Options should be populated based on available tools */}
+                </select>
               </div>
             </div>
 

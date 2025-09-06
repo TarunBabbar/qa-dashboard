@@ -2,6 +2,7 @@ import type { GetServerSideProps, NextPage } from 'next';
 import Link from 'next/link';
 import Header from '../../../components/Header';
 import React, { useEffect, useState } from 'react';
+import { backendBase } from '../../../lib/api';
 
 type FileItem = { path: string; content?: string };
 type Project = {
@@ -22,7 +23,8 @@ type Props = {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const { id } = ctx.params as { id: string };
   try {
-    const res = await fetch(`http://localhost:3000/api/projects/${id}`);
+    const base = process.env.NEXT_PUBLIC_BACKEND_URL || backendBase;
+    const res = await fetch(`${base}/api/projects/${id}`);
     if (!res.ok) {
       return { props: { project: null } };
     }

@@ -17,6 +17,33 @@
       "endedAt": "2025-08-31T08:10:30Z",
       "status": "failed",
       "results": "Element not found on login page"
+    },
+    {
+      "id": "CharpSelenium-TR-1",
+      "projectId": "proj-1757063951360",
+      "tool": "Docker",
+      "startedAt": "2025-09-06T07:46:22.591Z",
+      "endedAt": "2025-09-06T07:46:25.770Z",
+      "status": "passed",
+      "results": "Exit code: 0"
+    },
+    {
+      "id": "CSharpUnitTests-TR-1",
+      "projectId": "proj-1757146035528",
+      "tool": "Docker",
+      "startedAt": "2025-09-06T08:40:33.545Z",
+      "endedAt": "2025-09-06T08:40:34.920Z",
+      "status": "passed",
+      "results": "Exit code: 0"
+    },
+    {
+      "id": "CSharpUnitTests-TR-2",
+      "projectId": "proj-1757146035528",
+      "tool": "Docker",
+      "startedAt": "2025-09-06T08:44:08.662Z",
+      "endedAt": "2025-09-06T08:44:09.809Z",
+      "status": "passed",
+      "results": "Exit code: 0"
     }
   ]
 }
