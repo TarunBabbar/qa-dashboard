@@ -12,8 +12,7 @@ export const getServerSideProps: GetServerSideProps<{ projectId: string; path: s
   let content = '';
   if (id && filePath) {
     try {
-      const base = process.env.NEXT_PUBLIC_BACKEND_URL || backendBase;
-      const res = await fetch(`${base}/api/projects/${id}/files/${encodeURIComponent(filePath)}`);
+      const res = await fetch(`${backendBase}/api/projects/${id}/files/${encodeURIComponent(filePath)}`);
       if (res.ok) {
         const data = await res.json();
         content = data.content ?? '';

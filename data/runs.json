@@ -19,31 +19,283 @@
       "results": "Element not found on login page"
     },
     {
-      "id": "CharpSelenium-TR-1",
-      "projectId": "proj-1757063951360",
+      "id": "PythonSeleniumAutomation-TR-1",
+      "projectId": "proj-1757415401394",
       "tool": "Docker",
-      "startedAt": "2025-09-06T07:46:22.591Z",
-      "endedAt": "2025-09-06T07:46:25.770Z",
+      "startedAt": "2025-09-09T12:22:52.682Z",
+      "endedAt": "2025-09-09T12:23:15.367Z",
       "status": "passed",
       "results": "Exit code: 0"
     },
     {
-      "id": "CSharpUnitTests-TR-1",
-      "projectId": "proj-1757146035528",
+      "id": "PythonSeleniumAutomation-TR-2",
+      "projectId": "proj-1757415401394",
       "tool": "Docker",
-      "startedAt": "2025-09-06T08:40:33.545Z",
-      "endedAt": "2025-09-06T08:40:34.920Z",
+      "startedAt": "2025-09-09T13:17:17.526Z",
+      "endedAt": "2025-09-09T13:17:29.251Z",
       "status": "passed",
       "results": "Exit code: 0"
     },
     {
-      "id": "CSharpUnitTests-TR-2",
-      "projectId": "proj-1757146035528",
+      "id": "PythonSeleniumAutomation-TR-3",
+      "projectId": "proj-1757415401394",
       "tool": "Docker",
-      "startedAt": "2025-09-06T08:44:08.662Z",
-      "endedAt": "2025-09-06T08:44:09.809Z",
-      "status": "passed",
-      "results": "Exit code: 0"
+      "startedAt": "2025-09-09T13:21:11.109Z",
+      "endedAt": "2025-09-09T13:21:27.299Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-4",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T13:44:51.975Z",
+      "endedAt": "2025-09-09T13:45:02.901Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-5",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T13:45:20.753Z",
+      "endedAt": "2025-09-09T13:45:30.577Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-6",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T17:56:16.427Z",
+      "endedAt": "2025-09-09T17:56:32.070Z",
+      "status": "failed",
+      "results": "Exit code: 4"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-7",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T18:05:49.895Z",
+      "endedAt": "2025-09-09T18:05:56.404Z",
+      "status": "failed",
+      "results": "Exit code: 4"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-8",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T18:07:25.038Z",
+      "endedAt": "2025-09-09T18:08:12.633Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PyTestBDD-TR-1",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T18:25:59.880Z",
+      "endedAt": "2025-09-09T18:26:12.542Z",
+      "status": "failed",
+      "results": "Exit code: 4"
+    },
+    {
+      "id": "PyTestBDD-TR-2",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-09T18:30:58.397Z",
+      "endedAt": "2025-09-09T18:31:05.243Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-3",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T02:29:37.187Z",
+      "endedAt": "2025-09-10T02:29:41.419Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-4",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T02:35:00.481Z",
+      "endedAt": "2025-09-10T02:35:05.264Z",
+      "status": "failed",
+      "results": "Exit code: 4"
+    },
+    {
+      "id": "PyTestBDD-TR-5",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T02:39:59.551Z",
+      "endedAt": "2025-09-10T02:40:04.827Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-6",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T02:45:46.362Z",
+      "endedAt": "2025-09-10T02:45:51.437Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-9",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T02:46:29.545Z",
+      "endedAt": "2025-09-10T02:47:17.095Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PyTestBDD-TR-7",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:17:46.219Z",
+      "endedAt": "2025-09-10T03:17:51.904Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-8",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:20:48.578Z",
+      "endedAt": "2025-09-10T03:20:53.792Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-9",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:23:52.600Z",
+      "endedAt": "2025-09-10T03:23:57.339Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-10",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:25:32.111Z",
+      "endedAt": "2025-09-10T03:25:36.125Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-11",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:27:28.055Z",
+      "endedAt": "2025-09-10T03:33:23.202Z",
+      "status": "canceled",
+      "results": "Canceled by user"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-10",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:29:40.760Z",
+      "endedAt": "2025-09-10T03:30:02.394Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PyTestBDD-TR-12",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:33:30.536Z",
+      "endedAt": "2025-09-10T03:34:33.621Z",
+      "status": "canceled",
+      "results": "Canceled by user"
+    },
+    {
+      "id": "PythonSeleniumAutomation-TR-11",
+      "projectId": "proj-1757415401394",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:34:00.808Z",
+      "endedAt": "2025-09-10T03:34:21.562Z",
+      "status": "failed",
+      "results": "Exit code: 1"
+    },
+    {
+      "id": "PyTestBDD-TR-13",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:34:21.512Z",
+      "endedAt": "2025-09-10T03:34:27.932Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-14",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:34:45.518Z",
+      "endedAt": "2025-09-10T03:34:49.274Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-15",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:36:02.394Z",
+      "endedAt": "2025-09-10T03:36:07.058Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-16",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:37:19.577Z",
+      "endedAt": "2025-09-10T03:37:23.760Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-17",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:39:51.298Z",
+      "endedAt": "2025-09-10T03:39:54.904Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-18",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:44:11.997Z",
+      "endedAt": "2025-09-10T03:44:15.790Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-19",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:44:53.188Z",
+      "endedAt": "2025-09-10T03:44:56.928Z",
+      "status": "failed",
+      "results": "Exit code: 2"
+    },
+    {
+      "id": "PyTestBDD-TR-20",
+      "projectId": "proj-1757441677444",
+      "tool": "Docker",
+      "startedAt": "2025-09-10T03:46:05.648Z",
+      "endedAt": "2025-09-10T03:46:09.440Z",
+      "status": "failed",
+      "results": "Exit code: 2"
     }
   ]
 }

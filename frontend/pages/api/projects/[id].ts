@@ -41,6 +41,16 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ data: updated });
   }
 
-  res.setHeader('Allow', ['GET','PATCH']);
+  if (req.method === 'DELETE') {
+    const removed = projects.splice(idx, 1)[0];
+    writeProjects(projects);
+    return res.status(200).json({ 
+      removed, 
+      deletedRuns: 0, // Note: This frontend API doesn't handle runs/reverts
+      deletedReverts: 0 
+    });
+  }
+
+  res.setHeader('Allow', ['GET','PATCH','DELETE']);
   res.status(405).end();
 }

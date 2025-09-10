@@ -5,15 +5,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-  const { id } = req.query as { id: string };
+
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL as string;
   if (!backendUrl) return res.status(500).json({ error: 'NEXT_PUBLIC_BACKEND_URL not set' });
   try {
-    const resp = await fetch(`${backendUrl}/api/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
-    const data = await resp.json();
-    return res.status(resp.status).json(data);
+    const r = await fetch(`${backendUrl}/api/ai/revert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    const data = await r.json().catch(() => ({}));
+    return res.status(r.status).json(data);
   } catch (e: any) {
-    return res.status(500).json({ error: 'Failed to cancel run', details: String(e?.message || e) });
+    return res.status(500).json({ error: 'Proxy failed', details: String(e?.message || e) });
   }
 }
-

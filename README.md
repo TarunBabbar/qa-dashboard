@@ -9,32 +9,35 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-2. Copy environment template:
+2. Configure environment files:
 
-```
-cp ../.env.example ../backend/.env
-cp ../.env.example ../frontend/.env.local
+The project uses separate `.env` files for backend and frontend. You can use `.env.example` as a template:
+
+```bash
+# Copy template and edit with your API keys
+cp .env.example backend/.env
+cp .env.example frontend/.env
 ```
 
 (Or on Windows PowerShell)
 
-```
-Copy-Item ..\.env.example ..\backend\.env
-Copy-Item ..\.env.example ..\frontend\.env.local
+```powershell
+Copy-Item .env.example backend\.env
+Copy-Item .env.example frontend\.env
 ```
 
-3. Put your real `OPENAI_API_KEY` inside `backend/.env`.
-4. Start backend (default PORT=3000):
+3. Update `backend/.env` with your real `OPENAI_API_KEY`.
+4. Start backend (runs on port 3000):
 
-```
+```bash
 cd backend
 npm run dev
 ```
 
-5. Start frontend (runs at 3001 per `package.json`):
+5. Start frontend (runs on port 3001):
 
-```
-cd ../frontend
+```bash
+cd frontend
 npm run dev
 ```
 
@@ -45,14 +48,20 @@ npm run dev
 Backend (`backend/.env`):
 
 - `PORT` (default 3000)
+  Backend (`backend/.env`):
+
+- `PORT` (optional; default 3000)
+- `HOST` (optional; default 0.0.0.0)
 - `OPENAI_API_KEY` (required for AI features)
-- `OPENAI_MODEL` (optional; default gpt-4o-mini)
+- `OPENAI_MODEL` (optional; default gpt-4o)
 
-Frontend (`frontend/.env.local`):
+Frontend (`frontend/.env`):
 
+- `PORT` (optional; default 3001)
 - `NEXT_PUBLIC_BACKEND_URL` (required; points to backend, e.g. http://localhost:3000)
+- `NEXT_PUBLIC_FRONTEND_URL` (optional; frontend URL for reference)
 
-A sample `.env.example` is provided at the repo root.
+A sample `.env.example` is provided at the repo root as a template.
 
 ## AI Assistant Modes
 

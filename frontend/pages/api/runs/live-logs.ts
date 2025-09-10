@@ -7,7 +7,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL as string;
+  if (!backendUrl) return res.status(500).json({ error: 'NEXT_PUBLIC_BACKEND_URL not set' });
   try {
     const runsResp = await fetch(`${backendUrl}/api/runs`);
     const runsJson = await runsResp.json();

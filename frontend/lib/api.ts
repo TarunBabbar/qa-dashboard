@@ -61,6 +61,16 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   }
 }
 
+export async function deleteProject(id: string): Promise<ApiResponse<{ removed: Project; deletedRuns: number; deletedReverts: number }>> {
+  try {
+    const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    const json = await res.json();
+    return { data: json };
+  } catch (e: any) {
+    return { data: undefined as unknown as { removed: Project; deletedRuns: number; deletedReverts: number }, error: e.message };
+  }
+}
+
 export async function listFrameworks(): Promise<ApiResponse<Framework[]>> {
   return { data: [] };
 }
@@ -98,10 +108,8 @@ export { apiFetch };
 // AI assistant helpers
 // Backend base URL must come from environment to avoid hardcoded values in code.
 // Prefer NEXT_PUBLIC_BACKEND_URL set in the environment (Next.js exposes NEXT_PUBLIC_* to the browser).
-export const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL;
-if (!backendBase) {
-  console.warn('NEXT_PUBLIC_BACKEND_URL is not set. Please configure it in your .env file.');
-}
+// All backend access must go through this env value to avoid hardcoded ports/hosts.
+export const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 export async function generateAICode(projectId: string, tool: string, language: string, prompt: string) {
   const res = await fetch(`${backendBase}/api/ai/generate-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, tool, language, prompt }) });

@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Header from '../components/Header';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { backendBase } from '../lib/api';
 
 // Define the Project type
 interface Project {
@@ -27,10 +28,213 @@ export default function TestRuns() {
   const [logs, setLogs] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string>('');
+  const [expandedFailures, setExpandedFailures] = useState<Set<number>>(new Set());
+  const sseRef = useRef<EventSource | null>(null);
+
+  // Helper function to get project name by ID
+  const getProjectName = (projectId: string): string => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.name || projectId;
+  };
+
+  // Helper function to format ISO timestamp to HH:MM:SS
+  const formatTime = (isoTimestamp: string): string => {
+    if (!isoTimestamp) return '—';
+    try {
+      const date = new Date(isoTimestamp);
+      return date.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+    } catch {
+      return '—';
+    }
+  };
+
+  // Helper function to format status with proper capitalization
+  const formatStatus = (status: string): string => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
   
+  const toggleFailureExpansion = (index: number) => {
+    const newExpanded = new Set(expandedFailures);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedFailures(newExpanded);
+  };
+
+  // Helper function to get project name by ID
+  function calculateTimeTaken(startedAt: string | null, endedAt: string | null, status: string): string {
+    if (!startedAt) return '—';
+    if (status === 'running') {
+      const start = new Date(startedAt);
+      const now = new Date();
+      const diffMs = now.getTime() - start.getTime();
+      const seconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s (running)`;
+      if (minutes > 0) return `${minutes}m ${seconds % 60}s (running)`;
+      return `${seconds}s (running)`;
+    }
+    if (!endedAt) return '—';
+    const start = new Date(startedAt);
+    const end = new Date(endedAt);
+    const diffMs = end.getTime() - start.getTime();
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
+  }
+
+  // Extract failed test details from logs
+  function parseFailedTestDetails(text: string): Array<{testName: string, primaryError: string, detailError: string}> {
+    if (!text) return [];
+    const failedTests: Array<{testName: string, primaryError: string, detailError: string}> = [];
+    
+    // First, try to parse ERROR lines from "short test summary info" section (pytest abbreviated format)
+    const shortSummaryMatch = text.match(/=+ short test summary info =+([\s\S]*?)(?:=+.*?=+|$)/i);
+    if (shortSummaryMatch) {
+      const shortSummarySection = shortSummaryMatch[1];
+      const errorLines = shortSummarySection.match(/ERROR\s+([^\n]+)/g);
+      if (errorLines) {
+        errorLines.forEach(errorLine => {
+          const match = errorLine.match(/ERROR\s+(.+?)\s+-\s+(.+)/);
+          if (match) {
+            const testName = match[1].trim();
+            const errorMsg = match[2].trim();
+            failedTests.push({
+              testName: testName,
+              primaryError: errorMsg,
+              detailError: ''
+            });
+          }
+        });
+      }
+    }
+    
+    // If we found ERROR lines from short summary, return those
+    if (failedTests.length > 0) {
+      return failedTests.slice(0, 10); // Limit to 10 most recent failures
+    }
+    
+    // Fallback: Find the detailed ERRORS section - more detailed format
+    const failuresSectionMatch = text.match(/=+ ERRORS =+([\s\S]*?)(?:=+ warnings summary =+|=+ short test summary info =+|=+ \d+ failed.*? =+|$)/i);
+    if (!failuresSectionMatch) {
+      return [];
+    }
+    
+    const failuresSection = failuresSectionMatch[1];
+    
+    // Split by test name headers and process each part
+    const lines = failuresSection.split('\n');
+    let currentTest: {testName: string, primaryError: string, detailError: string} | null = null;
+    let inTestSection = false;
+    let contextLine = '';
+    let eLines: string[] = [];
+    
+    for (const line of lines) {
+      // Check if this line is a test header (underscores with test name)
+      const testHeaderMatch = line.match(/^_{7,}\s+(.+?)\s+_{7,}$/);
+      if (testHeaderMatch) {
+        // Save previous test if any
+        if (currentTest) {
+          if (contextLine && eLines.length > 0) {
+            currentTest.primaryError = contextLine;
+            currentTest.detailError = eLines.join(' ');
+          }
+          if (currentTest.primaryError) {
+            failedTests.push(currentTest);
+          }
+        }
+        
+        // Start new test
+        currentTest = {
+          testName: testHeaderMatch[1].trim(),
+          primaryError: '',
+          detailError: ''
+        };
+        contextLine = '';
+        eLines = [];
+        inTestSection = true;
+        continue;
+      }
+      
+      if (inTestSection) {
+        // Look for the context line (file:line: in test_name format)
+        if (line.match(/^\s*\S+\.py:\d+: in \w+/)) {
+          // Extract the assertion line that follows
+          const nextLineIndex = lines.indexOf(line) + 1;
+          if (nextLineIndex < lines.length) {
+            const assertionLine = lines[nextLineIndex].trim();
+            contextLine = assertionLine;
+          }
+        }
+        
+        // Collect E lines if we're in a test section
+        if (line.match(/^E\s+/)) {
+          eLines.push(line.replace(/^E\s+/, '').trim());
+        }
+      }
+    }
+    
+    // Don't forget the last test
+    if (currentTest) {
+      if (contextLine && eLines.length > 0) {
+        currentTest.primaryError = contextLine;
+        currentTest.detailError = eLines.join(' ');
+      }
+      if (currentTest.primaryError) {
+        failedTests.push(currentTest);
+      }
+    }
+    
+    return failedTests.slice(0, 10); // Limit to 10 most recent failures
+  }
+
   // Extract pass/fail counts from logs with common test runner patterns
   function parseCountsFromLogs(text: string): { passed: number | null; failed: number | null; total: number | null } {
     if (!text) return { passed: null, failed: null, total: null };
+    
+    // Pytest: "========================= X passed, Y failed, Z skipped in ... =========================" 
+    // or "========================= X passed in ... ========================="
+    // Also handle "X passed, Y warnings, Z errors" format
+    const pytestEnd = /=+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s =+/i.exec(text);
+    if (pytestEnd) {
+      const p = parseInt(pytestEnd[1], 10);
+      const f = pytestEnd[2] ? parseInt(pytestEnd[2], 10) : 0;
+      const e = pytestEnd[3] ? parseInt(pytestEnd[3], 10) : 0;
+      const totalFailed = f + e; // errors count as failures
+      return { passed: p, failed: totalFailed, total: p + totalFailed };
+    }
+    
+    // Pytest alternative format: "== X passed, Y failed, Z skipped in ... =="
+    const pytestAlt = /==+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s ==+/i.exec(text);
+    if (pytestAlt) {
+      const p = parseInt(pytestAlt[1], 10);
+      const f = pytestAlt[2] ? parseInt(pytestAlt[2], 10) : 0;
+      const e = pytestAlt[3] ? parseInt(pytestAlt[3], 10) : 0;
+      const totalFailed = f + e; // errors count as failures
+      return { passed: p, failed: totalFailed, total: p + totalFailed };
+    }
+    
+    // Pytest simple format: look for "X PASSED" and "Y FAILED" lines
+    const pytestPassed = /(\d+) PASSED/i.exec(text);
+    const pytestFailed = /(\d+) FAILED/i.exec(text);
+    if (pytestPassed || pytestFailed) {
+      const p = pytestPassed ? parseInt(pytestPassed[1], 10) : 0;
+      const f = pytestFailed ? parseInt(pytestFailed[1], 10) : 0;
+      return { passed: p, failed: f, total: p + f };
+    }
+    
     // Jest/Vitest: "Tests: 4 passed, 1 failed, 10 total" (order can vary)
     const jest = /Tests?:\s*(?:(\d+)\s*passed)?[, ]*\s*(?:(\d+)\s*failed)?[, ]*\s*(\d+)\s*total/i.exec(text);
     if (jest) {
@@ -39,6 +243,7 @@ export default function TestRuns() {
       const t = jest[3] ? parseInt(jest[3], 10) : null;
       return { passed: p, failed: f, total: t };
     }
+    
     // Mocha: "x passing" / "y failing"
     const mochaPass = /([0-9]+)\s+passing/i.exec(text);
     const mochaFail = /([0-9]+)\s+failing/i.exec(text);
@@ -47,34 +252,46 @@ export default function TestRuns() {
       const f = mochaFail ? parseInt(mochaFail[1], 10) : (text.match(/Error:|AssertionError|failing/i) ? 1 : null);
       return { passed: p, failed: f, total: p != null && f != null ? p + f : null };
     }
-    // Pytest: "== X passed, Y failed, Z skipped in ... =="
-    const pytest = /==+\s*(?:(\d+)\s+passed)?(?:,\s*)?(?:(\d+)\s+failed)?(?:,\s*)?(?:(\d+)\s+skipped)?[^=]*==/i.exec(text);
-    if (pytest) {
-      const p = pytest[1] ? parseInt(pytest[1], 10) : null;
-      const f = pytest[2] ? parseInt(pytest[2], 10) : null;
-      const s = pytest[3] ? parseInt(pytest[3], 10) : 0;
-      return { passed: p, failed: f, total: (p ?? 0) + (f ?? 0) + s || null };
-    }
+    
     // dotnet: "Total tests: X. Passed: Y. Failed: Z. Skipped: K." (avoid 's' flag; use [\s\S])
     const dotnet = /Total tests:\s*(\d+)[\s\S]*?Passed:\s*(\d+)[\s\S]*?Failed:\s*(\d+)/i.exec(text);
     if (dotnet) {
       const t = parseInt(dotnet[1], 10), p = parseInt(dotnet[2], 10), f = parseInt(dotnet[3], 10);
       return { passed: p, failed: f, total: t };
     }
+    
     // Maven/Surefire often prints "Tests run: X, Failures: Y, Errors: Z, Skipped: K"
     const surefire = /Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)/i.exec(text);
     if (surefire) {
       const run = parseInt(surefire[1], 10), failures = parseInt(surefire[2], 10), errors = parseInt(surefire[3], 10);
       return { passed: run - failures - errors, failed: failures + errors, total: run };
     }
+    
     // Fallback unknown
     return { passed: null, failed: null, total: null };
   }
-  const sseRef = useRef<EventSource | null>(null);
+
+  // Extract build/setup error messages from logs
+  function extractBuildError(text: string): string | null {
+    if (!text) return null;
+    
+    // Look for ERROR: and capture everything after it until newline
+    const errorMatch = text.match(/ERROR:\s*(.+?)(?:\n|$)/);
+    if (errorMatch) {
+      return errorMatch[1].trim();
+    }
+    
+    return null;
+  }
+
+  // Clear expanded failures when switching test runs
+  useEffect(() => {
+    setExpandedFailures(new Set());
+  }, [selectedRunId]);
 
   // Fetch projects and test runs on component mount
   useEffect(() => {
-    axios.get('/api/projects')
+    axios.get(`${backendBase}/api/projects`)
       .then((response: { data: { projects: Project[] } }) => {
         if (response.data && response.data.projects) {
           setProjects(response.data.projects);
@@ -88,7 +305,7 @@ export default function TestRuns() {
         setProjects([]);
       });
 
-    axios.get('/api/runs')
+    axios.get(`${backendBase}/api/runs`)
       .then((response: { data: { runs: Run[] } }) => {
         if (response.data && response.data.runs) {
           setTestRuns(response.data.runs);
@@ -107,9 +324,16 @@ export default function TestRuns() {
   useEffect(() => {
     // Close previous stream
     if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
-    if (!selectedRunId) return;
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-    const src = new EventSource(`${backendUrl}/api/runs/${encodeURIComponent(selectedRunId)}/logs/stream`);
+    if (!selectedRunId) {
+      setLogs(''); // Clear logs when no run is selected
+      return;
+    }
+    
+    // Force fresh start
+    setLogs('');
+    setExpandedFailures(new Set());
+    
+    const src = new EventSource(`${backendBase}/api/runs/${encodeURIComponent(selectedRunId)}/logs/stream`);
     sseRef.current = src;
     src.onmessage = (ev) => {
       try {
@@ -121,7 +345,7 @@ export default function TestRuns() {
     };
     src.onerror = () => {
       // Fallback: fetch once if stream errors
-      axios.get(`/api/runs/${encodeURIComponent(selectedRunId)}/logs`).then((r: any) => setLogs(r.data?.logs || ''));
+      axios.get(`${backendBase}/api/runs/${encodeURIComponent(selectedRunId)}/logs`).then((r: any) => setLogs(r.data?.logs || ''));
     };
     return () => { src.close(); sseRef.current = null; };
   }, [selectedRunId]);
@@ -130,7 +354,7 @@ export default function TestRuns() {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      axios.get('/api/runs')
+      axios.get(`${backendBase}/api/runs`)
         .then((response: { data: { runs: Run[] } }) => {
           setTestRuns(response.data?.runs ?? []);
         })
@@ -145,12 +369,15 @@ export default function TestRuns() {
       return;
     }
 
-    axios.post('/api/runs/start', { projectId: selectedProject })
+    axios.post(`${backendBase}/api/runs/start`, { projectId: selectedProject })
       .then((response: any) => {
         const run = response?.data?.run;
-        if (run?.id) setSelectedRunId(run.id);
+        if (run?.id) {
+          setSelectedRunId(run.id);
+          setLogs(''); // Clear previous logs
+        }
         // refresh runs immediately
-        axios.get('/api/runs').then((r: { data: { runs: Run[] } }) => setTestRuns(r.data?.runs ?? []));
+        axios.get(`${backendBase}/api/runs`).then((r: { data: { runs: Run[] } }) => setTestRuns(r.data?.runs ?? []));
       })
       .catch((error: any) => {
         console.error('Error starting test run:', error);
@@ -160,13 +387,14 @@ export default function TestRuns() {
 
   const handleFetchLogs = (runId: string) => {
     setLogs('');
+    setExpandedFailures(new Set()); // Clear expanded failure details
     setSelectedRunId(runId);
   };
 
   const handleCancel = (runId: string) => {
-    axios.post(`/api/runs/${encodeURIComponent(runId)}/cancel`).then(() => {
+    axios.post(`${backendBase}/api/runs/${encodeURIComponent(runId)}/cancel`).then(() => {
       // refresh list
-      axios.get('/api/runs').then((r: { data: { runs: Run[] } }) => setTestRuns(r.data?.runs ?? []));
+      axios.get(`${backendBase}/api/runs`).then((r: { data: { runs: Run[] } }) => setTestRuns(r.data?.runs ?? []));
     }).catch((e:any) => {
       console.error('Cancel failed', e);
       alert('Failed to cancel run');
@@ -234,8 +462,8 @@ export default function TestRuns() {
               {testRuns.length > 0 ? (
                 [...testRuns].filter(r => r.status !== 'running').slice(-10).reverse().map(r => (
                   <li key={r.id} className="flex justify-between">
-                    <button className="text-blue-700 hover:underline" onClick={() => setSelectedRunId(r.id)}>{r.id}</button>
-                    <span className={r.status === 'passed' ? 'text-green-600' : (r.status === 'failed' ? 'text-red-600' : 'text-slate-600')}>{r.status}</span>
+                    <button className="text-blue-700 hover:underline" onClick={() => handleFetchLogs(r.id)}>{r.id}</button>
+                    <span className={r.status === 'passed' ? 'text-green-600' : (r.status === 'failed' ? 'text-red-600' : 'text-slate-600')}>{formatStatus(r.status)}</span>
                   </li>
                 ))
               ) : (
@@ -255,11 +483,11 @@ export default function TestRuns() {
                 {testRuns.filter(r => r.status === 'running').length > 0 ? (
                   testRuns.filter(r => r.status === 'running').map(run => (
                     <tr key={run.id} className="border-t">
-                      <td><button className="text-blue-700 hover:underline" onClick={() => setSelectedRunId(run.id)}>{run.id}</button></td>
-                      <td>{run.projectId}</td>
-                      <td className="text-amber-600">{run.status}</td>
-                      <td>{run.startedAt}</td>
-                      <td>{run.endedAt || '-'}</td>
+                      <td><button className="text-blue-700 hover:underline" onClick={() => handleFetchLogs(run.id)}>{run.id}</button></td>
+                      <td>{getProjectName(run.projectId)}</td>
+                      <td className="text-amber-600">{formatStatus(run.status)}</td>
+                      <td>{formatTime(run.startedAt)}</td>
+                      <td>{formatTime(run.endedAt) !== '—' ? formatTime(run.endedAt) : '-'}</td>
                       <td>
                         <button className="px-2 py-1 text-xs bg-red-600 text-white rounded" onClick={() => handleCancel(run.id)}>Cancel</button>
                       </td>
@@ -281,50 +509,117 @@ export default function TestRuns() {
               if (!selected) return (
                 <div className="text-sm text-slate-500">Select a run from Past Test Runs or Ongoing Tests to see details.</div>
               );
-              const counts = parseCountsFromLogs(logs);
+              // Only parse counts if test is completed or has meaningful logs
+              const counts = (selected.status === 'running' && !logs.includes('passed')) 
+                ? { passed: null, failed: null, total: null } 
+                : parseCountsFromLogs(logs);
+              const failedDetails = parseFailedTestDetails(logs);
+              const buildError = selected.status === 'failed' ? extractBuildError(logs) : null;
+              const timeTaken = calculateTimeTaken(selected.startedAt, selected.endedAt, selected.status);
+              
               return (
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Run:</span>
                     <span>{selected.id}</span>
-                    <span className="px-2 py-0.5 rounded text-white text-xs ml-2" style={{ backgroundColor: selected.status === 'passed' ? '#16a34a' : selected.status === 'failed' ? '#dc2626' : '#a3a3a3' }}>{selected.status}</span>
+                    <span className="px-2 py-0.5 rounded text-white text-xs ml-2" style={{ backgroundColor: selected.status === 'passed' ? '#16a34a' : selected.status === 'failed' ? '#dc2626' : '#a3a3a3' }}>{formatStatus(selected.status)}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="text-slate-500">Project</div>
-                      <div>{selected.projectId}</div>
+                      <div>{getProjectName(selected.projectId)}</div>
                     </div>
                     <div>
                       <div className="text-slate-500">Tool</div>
-                      <div>{(selected as any).tool || '—'}</div>
+                      <div>{(selected as any).tool || 'Docker'}</div>
                     </div>
                     <div>
                       <div className="text-slate-500">Start</div>
-                      <div>{selected.startedAt || '—'}</div>
+                      <div>{formatTime(selected.startedAt)}</div>
                     </div>
                     <div>
                       <div className="text-slate-500">End</div>
-                      <div>{selected.endedAt || '—'}</div>
+                      <div>{formatTime(selected.endedAt)}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Time Taken</div>
+                      <div className="font-medium">{timeTaken}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Status</div>
+                      <div className={`font-medium ${
+                        selected.status === 'passed' ? 'text-green-600' : 
+                        selected.status === 'failed' ? 'text-red-600' : 
+                        selected.status === 'running' ? 'text-blue-600' : 'text-slate-600'
+                      }`}>
+                        {selected.status === 'running' ? 'Test in progress...' : formatStatus(selected.status)}
+                      </div>
+                      {buildError && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                          <div className="font-medium text-red-700 mb-1">Error Message:</div>
+                          <div className="text-red-600 font-mono text-xs break-words">{buildError}</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 mt-2">
                     <div className="p-3 rounded border bg-green-50">
                       <div className="text-slate-600 text-xs">Tests Passed</div>
-                      <div className="text-2xl font-semibold text-green-700">{counts.passed ?? '—'}</div>
+                      <div className="text-2xl font-semibold text-green-700">
+                        {selected.status === 'running' && counts.passed === null ? '...' : (counts.passed ?? '—')}
+                      </div>
                     </div>
                     <div className="p-3 rounded border bg-red-50">
                       <div className="text-slate-600 text-xs">Tests Failed</div>
-                      <div className="text-2xl font-semibold text-red-700">{counts.failed ?? '—'}</div>
+                      <div className="text-2xl font-semibold text-red-700">
+                        {selected.status === 'running' && counts.failed === null ? '...' : (counts.failed ?? '—')}
+                      </div>
                     </div>
                     <div className="p-3 rounded border bg-slate-50">
                       <div className="text-slate-600 text-xs">Total</div>
-                      <div className="text-2xl font-semibold text-slate-800">{counts.total ?? '—'}</div>
+                      <div className="text-2xl font-semibold text-slate-800">
+                        {selected.status === 'running' && counts.total === null ? '...' : (counts.total ?? '—')}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-slate-500">Result</div>
-                    <div>{selected.results || '—'}</div>
-                  </div>
+                  {failedDetails.length > 0 && selected.status === 'failed' && (
+                    <div key={selectedRunId} className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+                      <div className="text-red-700 font-medium text-sm mb-3">Failed Test Details:</div>
+                      <div className="space-y-3 text-sm">
+                        {failedDetails.map((failure, idx) => (
+                          <div key={idx} className="bg-white border border-red-200 p-3 rounded">
+                            <div className="font-medium text-red-800 mb-2">
+                              {failure.testName}
+                            </div>
+                            <div className="text-gray-700 mb-2 font-mono text-sm">
+                              {failure.primaryError}
+                            </div>
+                            {failure.detailError && (
+                              <div>
+                                <button
+                                  onClick={() => toggleFailureExpansion(idx)}
+                                  className="text-blue-600 hover:text-blue-800 text-sm underline mb-2"
+                                >
+                                  {expandedFailures.has(idx) ? '▼ Hide error details' : '▶ Show error details'}
+                                </button>
+                                {expandedFailures.has(idx) && (
+                                  <div className="font-mono text-sm text-red-600 bg-red-50 p-3 rounded mt-2 border-l-4 border-red-300">
+                                    {failure.detailError}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selected.results && !selected.results.startsWith('Exit code:') && (
+                    <div>
+                      <div className="text-slate-500">Result</div>
+                      <div>{selected.results}</div>
+                    </div>
+                  )}
                 </div>
               );
             })()}

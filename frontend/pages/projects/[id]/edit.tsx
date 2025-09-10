@@ -1,6 +1,7 @@
 import type { GetServerSideProps, NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Header from '../../../components/Header';
 import { getProject, updateProject } from '../../../lib/api';
 
@@ -9,15 +10,12 @@ type Props = {
 };
 
 const EditProject: NextPage<Props> = ({ id }) => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [language, setLanguage] = useState('');
-  const [testSuite, setTestSuite] = useState('');
-  const [frameworkIds, setFrameworkIds] = useState<string[]>([]);
-  const [tools, setTools] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -26,12 +24,6 @@ const EditProject: NextPage<Props> = ({ id }) => {
       if (res?.data) {
         setName(res.data.name || '');
         setDescription((res.data as any).description || '');
-        // handle older shape where languages may be an array under a different key
-        const lang = (res.data as any).language || ((res.data as any).languages ? (res.data as any).languages[0] : '');
-        setLanguage(lang);
-        setTestSuite(res.data.testSuite || '');
-        setFrameworkIds(res.data.frameworkIds || []);
-        setTools(res.data.tools || []);
       }
       setLoading(false);
     });
@@ -42,10 +34,14 @@ const EditProject: NextPage<Props> = ({ id }) => {
     e?.preventDefault();
     setMessage(null);
     setSaving(true);
-    const patch = { name, description, language, testSuite, frameworkIds, tools } as any;
+    const patch = { name, description } as any;
     const res = await updateProject(id, patch);
     if (res?.data) {
       setMessage('Project updated');
+      // Redirect to projects page after successful update
+      setTimeout(() => {
+        router.push('/projects');
+      }, 1000); // Wait 1 second to show success message
     } else {
       setMessage('Failed to update');
     }
@@ -70,34 +66,6 @@ const EditProject: NextPage<Props> = ({ id }) => {
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
               <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full border rounded px-3 py-2" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Programming Language</label>
-                <input value={language} onChange={e => setLanguage(e.target.value)} className="w-full border rounded px-3 py-2" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Test Suite</label>
-                <input value={testSuite} onChange={e => setTestSuite(e.target.value)} className="w-full border rounded px-3 py-2" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Framework</label>
-                <select multiple value={frameworkIds} onChange={e => setFrameworkIds(Array.from(e.target.selectedOptions, option => option.value))} className="w-full border rounded px-3 py-2">
-                  {/* Options should be populated based on available frameworks */}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Tools</label>
-                <select multiple value={tools} onChange={e => setTools(Array.from(e.target.selectedOptions, option => option.value))} className="w-full border rounded px-3 py-2">
-                  {/* Options should be populated based on available tools */}
-                </select>
-              </div>
             </div>
 
             {message && <div className="mb-4 p-3 rounded bg-green-50 text-green-700">{message}</div>}

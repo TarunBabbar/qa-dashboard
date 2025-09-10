@@ -9,7 +9,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query as { id: string };
   if (!id) return res.status(400).json({ error: 'Run id required' });
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL as string;
+  if (!backendUrl) return res.status(500).json({ error: 'NEXT_PUBLIC_BACKEND_URL not set' });
   try {
     const resp = await fetch(`${backendUrl}/api/runs/${encodeURIComponent(id)}/logs`);
     const data = await resp.json();

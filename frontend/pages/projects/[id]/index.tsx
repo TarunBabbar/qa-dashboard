@@ -23,8 +23,7 @@ type Props = {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const { id } = ctx.params as { id: string };
   try {
-    const base = process.env.NEXT_PUBLIC_BACKEND_URL || backendBase;
-    const res = await fetch(`${base}/api/projects/${id}`);
+    const res = await fetch(`${backendBase}/api/projects/${id}`);
     if (!res.ok) {
       return { props: { project: null } };
     }

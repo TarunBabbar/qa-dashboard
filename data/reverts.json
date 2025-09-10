@@ -751,6 +751,1168 @@
         }
       ],
       "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757156322030",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:42.030Z",
+      "filesBefore": [
+        {
+          "path": "temp/temp.csproj",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/temp.csproj",
+          "content": "// Project: temp\n<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net6.0</TargetFramework>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"SpecFlow\" Version=\"3.9.74\" />\n    <PackageReference Include=\"SpecFlow.NUnit\" Version=\"3.9.74\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.1.1\" />\n    <PackageReference Include=\"Selenium.Support\" Version=\"4.1.1\" />\n    <PackageReference Include=\"SpecFlow.Plus.LivingDocPlugin\" Version=\"3.9.74\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.2.0\" />\n    <PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17.0.0\" />\n  </ItemGroup>\n\n</Project>"
+        }
+      ],
+      "message": "Applied single file temp/temp.csproj"
+    },
+    {
+      "id": "revert-1757156323105",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:43.105Z",
+      "filesBefore": [
+        {
+          "path": "temp/specflow.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/specflow.json",
+          "content": "// Project: temp\n{\n  \"bindingCulture\": {\n    \"language\": \"en-us\"\n  },\n  \"stepAssemblies\": []\n}"
+        }
+      ],
+      "message": "Applied single file temp/specflow.json"
+    },
+    {
+      "id": "revert-1757156324082",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:44.082Z",
+      "filesBefore": [
+        {
+          "path": "temp/Features/Login.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Features/Login.feature",
+          "content": "// Project: temp\nFeature: Login\n  In order to access the application\n  As a user\n  I want to be able to log in\n\n  Scenario: Successful login with valid credentials\n    Given I am on the login page\n    When I enter valid credentials\n    Then I should be logged in and redirected to the home page"
+        }
+      ],
+      "message": "Applied single file temp/Features/Login.feature"
+    },
+    {
+      "id": "revert-1757156325030",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:45.030Z",
+      "filesBefore": [
+        {
+          "path": "temp/Steps/LoginSteps.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Steps/LoginSteps.cs",
+          "content": "// Project: temp\nusing TechTalk.SpecFlow;\nusing OpenQA.Selenium;\nusing NUnit.Framework;\nusing temp.Pages;\n\nnamespace temp.Steps\n{\n    [Binding]\n    public class LoginSteps\n    {\n        private readonly ScenarioContext _scenarioContext;\n        private readonly LoginPage _loginPage;\n        private readonly HomePage _homePage;\n\n        public LoginSteps(ScenarioContext scenarioContext)\n        {\n            _scenarioContext = scenarioContext;\n            _loginPage = new LoginPage((IWebDriver)_scenarioContext[\"WebDriver\"]);\n            _homePage = new HomePage((IWebDriver)_scenarioContext[\"WebDriver\"]);\n        }\n\n        [Given(@\"I am on the login page\")]\n        public void GivenIAmOnTheLoginPage()\n        {\n            _loginPage.NavigateTo();\n        }\n\n        [When(@\"I enter valid credentials\")]\n        public void WhenIEnterValidCredentials()\n        {\n            _loginPage.EnterUsername(\"standard_user\");\n            _loginPage.EnterPassword(\"secret_sauce\");\n            _loginPage.ClickLogin();\n        }\n\n        [Then(@\"I should be logged in and redirected to the home page\")]\n        public void ThenIShouldBeLoggedInAndRedirectedToTheHomePage()\n        {\n            Assert.IsTrue(_homePage.IsAtHomePage());\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Steps/LoginSteps.cs"
+    },
+    {
+      "id": "revert-1757156326068",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:46.068Z",
+      "filesBefore": [
+        {
+          "path": "temp/Pages/BasePage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Pages/BasePage.cs",
+          "content": "// Project: temp\nusing OpenQA.Selenium;\n\nnamespace temp.Pages\n{\n    public class BasePage\n    {\n        protected readonly IWebDriver Driver;\n\n        public BasePage(IWebDriver driver)\n        {\n            Driver = driver;\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Pages/BasePage.cs"
+    },
+    {
+      "id": "revert-1757156327238",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:47.238Z",
+      "filesBefore": [
+        {
+          "path": "temp/Pages/LoginPage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Pages/LoginPage.cs",
+          "content": "// Project: temp\nusing OpenQA.Selenium;\n\nnamespace temp.Pages\n{\n    public class LoginPage : BasePage\n    {\n        private readonly string url = \"http://www.saucedemo.com\";\n\n        public LoginPage(IWebDriver driver) : base(driver) { }\n\n        public void NavigateTo() => Driver.Navigate().GoToUrl(url);\n\n        public void EnterUsername(string username)\n        {\n            var usernameField = Driver.FindElement(By.Id(\"user-name\"));\n            usernameField.Clear();\n            usernameField.SendKeys(username);\n        }\n\n        public void EnterPassword(string password)\n        {\n            var passwordField = Driver.FindElement(By.Id(\"password\"));\n            passwordField.Clear();\n            passwordField.SendKeys(password);\n        }\n\n        public void ClickLogin()\n        {\n            var loginButton = Driver.FindElement(By.Id(\"login-button\"));\n            loginButton.Click();\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Pages/LoginPage.cs"
+    },
+    {
+      "id": "revert-1757156328284",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:48.284Z",
+      "filesBefore": [
+        {
+          "path": "temp/Pages/HomePage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Pages/HomePage.cs",
+          "content": "// Project: temp\nusing OpenQA.Selenium;\n\nnamespace temp.Pages\n{\n    public class HomePage : BasePage\n    {\n        public HomePage(IWebDriver driver) : base(driver) { }\n\n        public bool IsAtHomePage()\n        {\n            return Driver.Url.Contains(\"inventory.html\");\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Pages/HomePage.cs"
+    },
+    {
+      "id": "revert-1757156329939",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T10:58:49.939Z",
+      "filesBefore": [
+        {
+          "path": "temp/README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/README.md",
+          "content": "# Project: temp\n\n## Setup Instructions\n\n1. **Install .NET 6 SDK**\n   - Download it from [https://dotnet.microsoft.com/download/dotnet/6.0](https://dotnet.microsoft.com/download/dotnet/6.0).\n   \n2. **Clone the repository**\n   ```bash\n   git clone <repository-url>\n   cd temp\n   ```\n\n3. **Restore NuGet packages**\n   ```bash\n   dotnet restore\n   ```\n\n4. **Run Tests**\n   ```bash\n   dotnet test\n   ```\n\n## Project Structure\n- **Features**: SpecFlow feature files.\n- **Steps**: Step definitions for SpecFlow features.\n- **Pages**: Page Object Model classes.\n\n## Notes\n- This project demonstrates a simple login test using the Page Object Model pattern with SpecFlow and Selenium WebDriver.\n- Ensure you have the drivers for the browsers you intend to use installed and correctly configured in your PATH.\n"
+        }
+      ],
+      "message": "Applied single file temp/README.md"
+    },
+    {
+      "id": "revert-1757156648758",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:08.758Z",
+      "filesBefore": [
+        {
+          "path": "temp/temp.csproj",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/temp.csproj",
+          "content": "<Project Sdk=\\\"Microsoft.NET.Sdk\\\">\\n  <PropertyGroup>\\n    <OutputType>Exe</OutputType>\\n    <TargetFramework>net6.0</TargetFramework>\\n  </PropertyGroup>\\n  <ItemGroup>\\n    <PackageReference Include=\\\"SpecFlow.NUnit\\\" Version=\\\"3.9.40\\\" />\\n    <PackageReference Include=\\\"Selenium.WebDriver\\\" Version=\\\"4.10.0\\\" />\\n    <PackageReference Include=\\\"Selenium.WebDriver.ChromeDriver\\\" Version=\\\"114.0.5735.90\\\" />\\n  </ItemGroup>\\n</Project>"
+        }
+      ],
+      "message": "Applied single file temp/temp.csproj"
+    },
+    {
+      "id": "revert-1757156649816",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:09.816Z",
+      "filesBefore": [
+        {
+          "path": "specflow.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "specflow.json",
+          "content": "{\\n  \\\"bindingCulture\\\": {\\n    \\\"name\\\": \\\"en\\\"\\n  },\\n  \\\"language\\\": {\\n    \\\"feature\\\": \\\"en\\\"\\n  },\\n  \\\"runtime\\\": {\\n    \\\"stopAtFirstError\\\": false\\n  }\\n}"
+        }
+      ],
+      "message": "Applied single file specflow.json"
+    },
+    {
+      "id": "revert-1757156650726",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:10.726Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/LoginPage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/LoginPage.cs",
+          "content": "using OpenQA.Selenium;\\nnamespace temp.Pages\\n{\\n    public class LoginPage\\n    {\\n        private readonly IWebDriver _driver;\\n        private readonly By _usernameField = By.Id(\\\"user-name\\\");\\n        private readonly By _passwordField = By.Id(\\\"password\\\");\\n        private readonly By _loginButton = By.Id(\\\"login-button\\\");\\n\\n        public LoginPage(IWebDriver driver)\\n        {\\n            _driver = driver;\\n        }\\n\\n        public void EnterUsername(string username)\\n        {\\n            _driver.FindElement(_usernameField).SendKeys(username);\\n        }\\n\\n        public void EnterPassword(string password)\\n        {\\n            _driver.FindElement(_passwordField).SendKeys(password);\\n        }\\n\\n        public void ClickLogin()\\n        {\\n            _driver.FindElement(_loginButton).Click();\\n        }\\n    }\\n}"
+        }
+      ],
+      "message": "Applied single file src/pages/LoginPage.cs"
+    },
+    {
+      "id": "revert-1757156651747",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:11.747Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/features/Login.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/features/Login.feature",
+          "content": "# language: en\\nFeature: Login\\n  In order to access my account\\n  As a user\\n  I want to be able to log into the saucedemo application\\n\\n  Scenario: Successful Login\\n    Given I have navigated to the saucedemo login page\\n    When I enter valid credentials\\n    And I click the login button\\n    Then I should be redirected to the inventory page\\n"
+        }
+      ],
+      "message": "Applied single file src/tests/features/Login.feature"
+    },
+    {
+      "id": "revert-1757156652687",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:12.687Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/steps/LoginSteps.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/steps/LoginSteps.cs",
+          "content": "using TechTalk.SpecFlow;\\nusing OpenQA.Selenium;\\nusing OpenQA.Selenium.Chrome;\\nusing temp.Pages;\\n\\nnamespace temp.Tests.Steps\\n{\\n    [Binding]\\n    public class LoginSteps\\n    {\\n        private IWebDriver _driver;\\n        private LoginPage _loginPage;\\n\\n        [Given(@\\\"I have navigated to the saucedemo login page\\\")]\\n        public void GivenIHaveNavigatedToTheSaucedemoLoginPage()\\n        {\\n            _driver = new ChromeDriver();\\n            _driver.Navigate().GoToUrl(\\\"https://www.saucedemo.com\\\");\\n            _loginPage = new LoginPage(_driver);\\n        }\\n\\n        [When(@\\\"I enter valid credentials\\\")]\\n        public void WhenIEnterValidCredentials()\\n        {\\n            _loginPage.EnterUsername(\\\"standard_user\\\");\\n            _loginPage.EnterPassword(\\\"secret_sauce\\\");\\n        }\\n\\n        [When(@\\\"I click the login button\\\")]\\n        public void WhenIClickTheLoginButton()\\n        {\\n            _loginPage.ClickLogin();\\n        }\\n        \\n        [Then(@\\\"I should be redirected to the inventory page\\\")]\\n        public void ThenIShouldBeRedirectedToTheInventoryPage()\\n        {\\n            Assert.IsTrue(_driver.Url.Contains(\\\"inventory.html\\\"));\\n            _driver.Quit();\\n        }\\n    }\\n}"
+        }
+      ],
+      "message": "Applied single file src/tests/steps/LoginSteps.cs"
+    },
+    {
+      "id": "revert-1757156653587",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:04:13.587Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# temp Project\\n\\n## Setup Instructions\\n\\n1. Install .NET 6 SDK from [https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download).\\n2. Clone the repository.\\n3. Open a terminal and navigate to the project root.\\n4. Restore the dependencies:\\n   ```bash\\n   dotnet restore\\n   ```\\n5. Build the project:\\n   ```bash\\n   dotnet build\\n   ```\\n\\n## Running the Tests\\n\\n1. Execute the tests using the following command:\\n   ```bash\\n   dotnet test\\n   ```\\n\\n## Project Structure\\n\\n- `src/pages/`: Contains the Page Object Model classes for UI automation.\\n- `src/tests/features/`: Contains the SpecFlow feature files.\\n- `src/tests/steps/`: Contains the SpecFlow step definition classes.\\n- `temp.csproj`: The project file which includes SpecFlow and Selenium WebDriver dependencies.\\n- `specflow.json`: SpecFlow configuration file."
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757157177147",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:12:57.147Z",
+      "filesBefore": [
+        {
+          "path": "temp/temp.csproj",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/temp.csproj",
+          "content": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net7.0</TargetFramework>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"SpecFlow.NUnit\" Version=\"4.0.9\" />\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.9.0\" />\n    <PackageReference Include=\"Selenium.Support\" Version=\"4.9.0\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.3.1\" />\n    <PackageReference Include=\"Selenium.WebDriver.ChromeDriver\" Version=\"115.0.5790.10200\" />\n  </ItemGroup>\n</Project>"
+        }
+      ],
+      "message": "Applied single file temp/temp.csproj"
+    },
+    {
+      "id": "revert-1757157178090",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:12:58.090Z",
+      "filesBefore": [
+        {
+          "path": "temp/specflow.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/specflow.json",
+          "content": "{\n  \"bindingCulture\": {\n    \"name\": \"en-US\"\n  },\n  \"language\": {\n    \"feature\": \"en-US\"\n  }\n}"
+        }
+      ],
+      "message": "Applied single file temp/specflow.json"
+    },
+    {
+      "id": "revert-1757157180134",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:13:00.134Z",
+      "filesBefore": [
+        {
+          "path": "temp/Features/LoginFeature.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Features/LoginFeature.feature",
+          "content": "Feature: Login\n  In order to access the application\n  As a user\n  I want to be able to login\n\n  Scenario: Valid user can log into the application\n    Given I am on the login page\n    When I fill in username with \"standard_user\"\n    And I fill in password with \"secret_sauce\"\n    And I click the login button\n    Then I should see the products page"
+        }
+      ],
+      "message": "Applied single file temp/Features/LoginFeature.feature"
+    },
+    {
+      "id": "revert-1757157180963",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:13:00.963Z",
+      "filesBefore": [
+        {
+          "path": "temp/Steps/LoginSteps.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Steps/LoginSteps.cs",
+          "content": "using OpenQA.Selenium;\nusing TechTalk.SpecFlow;\nusing NUnit.Framework;\nusing temp.Pages;\n\nnamespace temp.Steps\n{\n    [Binding]\n    public class LoginSteps\n    {\n        private readonly IWebDriver _driver;\n        private readonly LoginPage _loginPage;\n\n        public LoginSteps(IWebDriver driver)\n        {\n            _driver = driver;\n            _loginPage = new LoginPage(driver);\n        }\n\n        [Given(\"I am on the login page\")]\n        public void GivenIAmOnTheLoginPage()\n        {\n            _loginPage.NavigateTo();\n        }\n\n        [When(\"I fill in username with \\\"(.*)\\\"\")]\n        public void WhenIFillInUsernameWith(string username)\n        {\n            _loginPage.EnterUsername(username);\n        }\n\n        [When(\"I fill in password with \\\"(.*)\\\"\")]\n        public void WhenIFillInPasswordWith(string password)\n        {\n            _loginPage.EnterPassword(password);\n        }\n\n        [When(\"I click the login button\")]\n        public void WhenIClickTheLoginButton()\n        {\n            _loginPage.ClickLoginButton();\n        }\n\n        [Then(\"I should see the products page\")]\n        public void ThenIShouldSeeTheProductsPage()\n        {\n            Assert.IsTrue(_driver.Title.Contains(\"Products\"));\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Steps/LoginSteps.cs"
+    },
+    {
+      "id": "revert-1757157181868",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:13:01.868Z",
+      "filesBefore": [
+        {
+          "path": "temp/Pages/LoginPage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "temp/Pages/LoginPage.cs",
+          "content": "using OpenQA.Selenium;\n\nnamespace temp.Pages\n{\n    public class LoginPage\n    {\n        private readonly IWebDriver _driver;\n        private const string Url = \"https://www.saucedemo.com\";\n\n        public LoginPage(IWebDriver driver)\n        {\n            _driver = driver;\n        }\n\n        private IWebElement UsernameField => _driver.FindElement(By.Id(\"user-name\"));\n        private IWebElement PasswordField => _driver.FindElement(By.Id(\"password\"));\n        private IWebElement LoginButton => _driver.FindElement(By.Id(\"login-button\"));\n\n        public void NavigateTo()\n        {\n            _driver.Navigate().GoToUrl(Url);\n        }\n\n        public void EnterUsername(string username)\n        {\n            UsernameField.Clear();\n            UsernameField.SendKeys(username);\n        }\n\n        public void EnterPassword(string password)\n        {\n            PasswordField.Clear();\n            PasswordField.SendKeys(password);\n        }\n\n        public void ClickLoginButton()\n        {\n            LoginButton.Click();\n        }\n    }\n}"
+        }
+      ],
+      "message": "Applied single file temp/Pages/LoginPage.cs"
+    },
+    {
+      "id": "revert-1757157182854",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:13:02.854Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# temp SpecFlow Project\n\n## Setup and Execution Instructions\n\n### Prerequisites\n- .NET SDK 7.0 or later\n- Chrome browser\n\n### Installation Steps\n1. Clone the repository\n2. Navigate to the project directory: `cd temp`\n3. Restore the NuGet packages: `dotnet restore`\n\n### Running Tests\nRun the following command to execute the tests:\n\n```bash\ndotnet test\n```\n\nEnsure that the Chrome browser is installed as the tests use ChromeDriver for UI automation."
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757158965647",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:45.647Z",
+      "filesBefore": [
+        {
+          "path": "SpecFlowProject.csproj",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "SpecFlowProject.csproj",
+          "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net6.0</TargetFramework>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <Nullable>enable</Nullable>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Microsoft.Playwright.NUnit\" Version=\"1.31.0\" />\n    <PackageReference Include=\"SpecFlow.Plus.LivingDocPlugin\" Version=\"3.9.5\" />\n    <PackageReference Include=\"SpecFlow.Plus.Playwright\" Version=\"1.65.1\" />\n    <PackageReference Include=\"SpecFlow.Plus.NUnit\" Version=\"3.9.5\" />\n  </ItemGroup>\n</Project>\n"
+        }
+      ],
+      "message": "Applied single file SpecFlowProject.csproj"
+    },
+    {
+      "id": "revert-1757158966630",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:46.630Z",
+      "filesBefore": [
+        {
+          "path": "specflow.json",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "specflow.json",
+          "content": "{\n  \"bindingCulture\": {\n    \"language\": \"en-us\"\n  },\n  \"plugins\": [\n    {\n      \"name\": \"SpecFlow.Plus.LivingDocPlugin\",\n      \"type\": \"Runtime\"\n    }\n  ]\n}\n"
+        }
+      ],
+      "message": "Applied single file specflow.json"
+    },
+    {
+      "id": "revert-1757158967513",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:47.513Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/LoginPage.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/LoginPage.cs",
+          "content": "using Microsoft.Playwright;\nusing System.Threading.Tasks;\n\nnamespace temp.Pages\n{\n    public class LoginPage\n    {\n        private readonly IPage _page;\n\n        public LoginPage(IPage page)\n        {\n            _page = page;\n        }\n\n        private ILocator UsernameField => _page.Locator(\"#user-name\");\n        private ILocator PasswordField => _page.Locator(\"#password\");\n        private ILocator LoginButton => _page.Locator(\"#login-button\");\n\n        public async Task NavigateAsync()\n        {\n            await _page.GotoAsync(\"http://www.saucedemo.com\");\n        }\n\n        public async Task LoginAsync(string username, string password)\n        {\n            await UsernameField.FillAsync(username);\n            await PasswordField.FillAsync(password);\n            await LoginButton.ClickAsync();\n        }\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/pages/LoginPage.cs"
+    },
+    {
+      "id": "revert-1757158968421",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:48.421Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/LoginFeature.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/LoginFeature.feature",
+          "content": "Feature: Login\n\n  Scenario: Valid user can log in\n    Given I am on the Sauce Demo login page\n    When I log in with valid credentials\n    Then I should see the inventory page\n"
+        }
+      ],
+      "message": "Applied single file src/tests/LoginFeature.feature"
+    },
+    {
+      "id": "revert-1757158969300",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:49.300Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/LoginStepDefinitions.cs",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/LoginStepDefinitions.cs",
+          "content": "using Microsoft.Playwright.NUnit;\nusing NUnit.Framework;\nusing SpecFlowProject.Pages;\nusing System.Threading.Tasks;\nusing TechTalk.SpecFlow;\n\nnamespace temp\n{\n    [Binding]\n    public class LoginStepDefinitions : PageTest\n    {\n        private LoginPage _loginPage;\n\n        [Given(@\"I am on the Sauce Demo login page\")]\n        public async Task GivenIAmOnTheSauceDemoLoginPage()\n        {\n            _loginPage = new LoginPage(Page);\n            await _loginPage.NavigateAsync();\n        }\n\n        [When(@\"I log in with valid credentials\")]\n        public async Task WhenILogInWithValidCredentials()\n        {\n            await _loginPage.LoginAsync(\"standard_user\", \"secret_sauce\");\n        }\n\n        [Then(@\"I should see the inventory page\")]\n        public async Task ThenIShouldSeeTheInventoryPage()\n        {\n            var title = await Page.TitleAsync();\n            Assert.AreEqual(\"Swag Labs\", title);\n        }\n    }\n}\n"
+        }
+      ],
+      "message": "Applied single file src/tests/LoginStepDefinitions.cs"
+    },
+    {
+      "id": "revert-1757158970145",
+      "projectId": "proj-1757151715951",
+      "createdAt": "2025-09-06T11:42:50.145Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# SpecFlow UI Test Project with Playwright\n\n## Setup Instructions\n\n1. Install .NET 6.0 SDK if not already installed.\n2. Navigate to the project directory.\n3. Restore the dependencies by running:\n   ```bash\n   dotnet restore\n   ```\n4. Build the project:\n   ```bash\n   dotnet build\n   ```\n5. Execute the tests:\n   ```bash\n   dotnet test\n   ```"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757167411210",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:31.210Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest==7.2.0\npytest-bdd==4.0.2\nselenium==4.8.0\n"
+        }
+      ],
+      "message": "Applied single file requirements.txt"
+    },
+    {
+      "id": "revert-1757167412369",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:32.369Z",
+      "filesBefore": [
+        {
+          "path": "pytest.ini",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = --strict-markers\n\nmarkers =\n    smoke: mark a test as a smoke test.\n    regression: mark a test as a regression test.\n"
+        }
+      ],
+      "message": "Applied single file pytest.ini"
+    },
+    {
+      "id": "revert-1757167413331",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:33.331Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\nclass LoginPage:\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n    def load(self):\n        self.driver.get('https://www.saucedemo.com')\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n        self.driver.find_element(*self.password_input).send_keys(password)\n        self.driver.find_element(*self.login_button).click()\n"
+        }
+      ],
+      "message": "Applied single file src/pages/login_page.py"
+    },
+    {
+      "id": "revert-1757167414310",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:34.310Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom pytest_bdd import scenarios, given, when, then\nfrom selenium import webdriver\n\nfrom src.pages.login_page import LoginPage\n\nscenarios('../features/login.feature')\n\n@pytest.fixture\ndef browser():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n@given('the login page is displayed')\ndef login_page(browser):\n    page = LoginPage(browser)\n    page.load()\n    return page\n\n@when('the user logs in with username \"standard_user\" and password \"secret_sauce\"')\ndef user_logs_in(login_page):\n    login_page.login('standard_user', 'secret_sauce')\n\n@then('the user is redirected to the inventory page')\ndef verify_inventory_page(browser):\n    assert \"inventory\" in browser.current_url\n"
+        }
+      ],
+      "message": "Applied single file src/tests/test_login.py"
+    },
+    {
+      "id": "revert-1757167415766",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:35.767Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/features/login.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/features/login.feature",
+          "content": "Feature: Login\n\n  Scenario: Successful login\n    Given the login page is displayed\n    When the user logs in with username \"standard_user\" and password \"secret_sauce\"\n    Then the user is redirected to the inventory page\n"
+        }
+      ],
+      "message": "Applied single file src/tests/features/login.feature"
+    },
+    {
+      "id": "revert-1757167423245",
+      "projectId": "proj-1757159006173",
+      "createdAt": "2025-09-06T14:03:43.245Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# Tarun UI Automation Project\n\n## Setup Instructions\n\n1. **Install Python Dependencies**\n\n   Ensure you have Python installed on your machine. Then, install the required dependencies:\n\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n2. **Run the Tests**\n\n   Use pytest to run the tests:\n\n   ```bash\n   pytest\n   ```\n\n## Project Structure\n\n- `requirements.txt`: Python dependencies.\n- `pytest.ini`: Pytest configuration.\n- `src/pages/`: Contains Page Object Model (POM) classes for each page.\n- `src/tests/`: Contains the BDD tests and feature files.\n\n## Execution Notes\n\n- This project uses Selenium WebDriver for browser automation.\n- Ensure that you have the appropriate browser driver installed and in your PATH (e.g., ChromeDriver for Google Chrome).\n\n"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757402824314",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:04.314Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest==7.3.1\npytest-bdd==6.1.1\nselenium==4.9.1\n"
+        }
+      ],
+      "message": "Applied single file requirements.txt"
+    },
+    {
+      "id": "revert-1757402826394",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:06.394Z",
+      "filesBefore": [
+        {
+          "path": "pytest.ini",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    bdd: mark the test as behavior-driven\n"
+        }
+      ],
+      "message": "Applied single file pytest.ini"
+    },
+    {
+      "id": "revert-1757402827443",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:07.443Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n"
+        }
+      ],
+      "message": "Applied single file src/pages/login_page.py"
+    },
+    {
+      "id": "revert-1757402828404",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:08.404Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom pytest_bdd import scenarios, given, when, then\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\n\n# Scenarios\nscenarios('../features/login.feature')\n\n\n# Fixtures\n@pytest.fixture\ndef browser():\n    driver = webdriver.Chrome()\n    driver.implicitly_wait(10)\n    yield driver\n    driver.quit()\n\n\n# Given Steps\n@given('the login page is displayed')\ndef login_page(browser):\n    page = LoginPage(browser)\n    page.load()\n\n\n# When Steps\n@when('the user logs in with username \"<username>\" and password \"<password>\"')\ndef login(browser, username, password):\n    page = LoginPage(browser)\n    page.login(username, password)\n\n\n# Then Steps\n@then('the user should be redirected to the inventory page')\ndef check_inventory_page(browser):\n    assert \"inventory\" in browser.current_url\n"
+        }
+      ],
+      "message": "Applied single file src/tests/test_login.py"
+    },
+    {
+      "id": "revert-1757402829430",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:09.430Z",
+      "filesBefore": [
+        {
+          "path": "src/features/login.feature",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/features/login.feature",
+          "content": "Feature: Login to Saucedemo\n\n  Scenario: Successful login with valid credentials\n    Given the login page is displayed\n    When the user logs in with username \"standard_user\" and password \"secret_sauce\"\n    Then the user should be redirected to the inventory page\n"
+        }
+      ],
+      "message": "Applied single file src/features/login.feature"
+    },
+    {
+      "id": "revert-1757402831226",
+      "projectId": "proj-1757396459939",
+      "createdAt": "2025-09-09T07:27:11.226Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# PytestBDD Project for Saucedemo\n\nThis project is a demonstration of UI testing using Pytest and Pytest-BDD for the site `saucedemo.com`.\n\n## Prerequisites\n\nEnsure you have the following installed:\n\n- Python 3.7+\n- pip\n- Chrome browser\n- ChromeDriver matching your Chrome version\n\n## Setup\n\n1. Clone the repository:\n   ```\n   git clone <repository_url>\n   cd <repository_directory>\n   ```\n\n2. Install the dependencies:\n   ```\n   pip install -r requirements.txt\n   ```\n\n## Running the Tests\n\nExecute the tests using pytest:\n\n```bash\npytest src/tests\n```\n\n## Project Structure\n\n- **requirements.txt**: Python dependencies.\n- **pytest.ini**: pytest configuration file.\n- **src/pages**: Page Object Models for the application pages.\n- **src/tests**: Contains the test cases implemented using pytest-bdd.\n- **src/features**: BDD feature files describing the tests.\n"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757420453687",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T12:20:53.687Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n"
+        }
+      ],
+      "message": "Applied single file requirements.txt"
+    },
+    {
+      "id": "revert-1757420455260",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T12:20:55.261Z",
+      "filesBefore": [
+        {
+          "path": "pytest.ini",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n"
+        }
+      ],
+      "message": "Applied single file pytest.ini"
+    },
+    {
+      "id": "revert-1757420456311",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T12:20:56.311Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n"
+        }
+      ],
+      "message": "Applied single file src/pages/login_page.py"
+    },
+    {
+      "id": "revert-1757420457311",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T12:20:57.311Z",
+      "filesBefore": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n\ndef test_valid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"standard_user\", \"secret_sauce\")\n    assert \"inventory.html\" in driver.current_url\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        }
+      ],
+      "message": "Applied single file src/tests/test_login.py"
+    },
+    {
+      "id": "revert-1757420458364",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T12:20:58.364Z",
+      "filesBefore": [
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\nThis project is designed to automate test cases for the [SauceDemo](https://www.saucedemo.com) website using Selenium and Python.\n\n## Setup\n\n1. **Clone the repo:**\n   ```bash\n   git clone <repo-url>\n   cd <repo-dir>\n   ```\n\n2. **Create a virtual environment:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`\n   ```\n\n3. **Install dependencies:**\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. **Download WebDriver:**\n   - Ensure you have the appropriate WebDriver for your browser (e.g., ChromeDriver for Chrome).\n   - Make sure WebDriver is in your PATH, or specify the path in `webdriver.Chrome()` in `test_login.py`.\n\n## Running the tests\n\nExecute all tests with:\n```bash\npytest\n```\n\nTo run tests in parallel, you can use the pytest-xdist plugin:\n```bash\npytest -n auto\n```\n\n## Project Structure\n\n- `src/pages`: Contains Page Object Model classes\n- `src/tests`: Contains test cases\n"
+        }
+      ],
+      "message": "Applied single file README.md"
+    },
+    {
+      "id": "revert-1757434822717",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T16:20:22.717Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n"
+        }
+      ],
+      "message": "Applied with conflict resolution"
+    },
+    {
+      "id": "revert-1757434869141",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T16:21:09.141Z",
+      "filesBefore": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n"
+        }
+      ],
+      "message": "Applied with conflict resolution"
+    },
+    {
+      "id": "revert-1757435850693",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T16:37:30.693Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n\ndef test_valid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"standard_user\", \"secret_sauce\")\n    assert \"inventory.html\" in driver.current_url\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\nThis project is designed to automate test cases for the [SauceDemo](https://www.saucedemo.com) website using Selenium and Python.\n\n## Setup\n\n1. **Clone the repo:**\n   ```bash\n   git clone <repo-url>\n   cd <repo-dir>\n   ```\n\n2. **Create a virtual environment:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`\n   ```\n\n3. **Install dependencies:**\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. **Download WebDriver:**\n   - Ensure you have the appropriate WebDriver for your browser (e.g., ChromeDriver for Chrome).\n   - Make sure WebDriver is in your PATH, or specify the path in `webdriver.Chrome()` in `test_login.py`.\n\n## Running the tests\n\nExecute all tests with:\n```bash\npytest\n```\n\nTo run tests in parallel, you can use the pytest-xdist plugin:\n```bash\npytest -n auto\n```\n\n## Project Structure\n\n- `src/pages`: Contains Page Object Model classes\n- `src/tests`: Contains test cases\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n\n\n// Auto-merged content\nselenium==4.5.0\npytest==7.1.3\npytest-html==3.2.0\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n\n\n// Auto-merged content\n[pytest]\naddopts = --html=report.html\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n\ndef test_valid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"standard_user\", \"secret_sauce\")\n    assert \"inventory.html\" in driver.current_url\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\nThis project is designed to automate test cases for the [SauceDemo](https://www.saucedemo.com) website using Selenium and Python.\n\n## Setup\n\n1. **Clone the repo:**\n   ```bash\n   git clone <repo-url>\n   cd <repo-dir>\n   ```\n\n2. **Create a virtual environment:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`\n   ```\n\n3. **Install dependencies:**\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. **Download WebDriver:**\n   - Ensure you have the appropriate WebDriver for your browser (e.g., ChromeDriver for Chrome).\n   - Make sure WebDriver is in your PATH, or specify the path in `webdriver.Chrome()` in `test_login.py`.\n\n## Running the tests\n\nExecute all tests with:\n```bash\npytest\n```\n\nTo run tests in parallel, you can use the pytest-xdist plugin:\n```bash\npytest -n auto\n```\n\n## Project Structure\n\n- `src/pages`: Contains Page Object Model classes\n- `src/tests`: Contains test cases\n\n\n// Auto-merged content\n# Python Selenium Automation\n\n## Setup Instructions\n\n1. Ensure you have Python installed (suggested: Python 3.7+).\n2. Install the required Python packages:\n   ```bash\n   pip install -r requirements.txt\n   ```\n3. Ensure you have ChromeDriver installed and it's in your PATH.\n\n## Running the Tests\n\nExecute the following command to run the tests:\n```bash\npytest\n```\n\nThis will generate an HTML report as `report.html` in the project root."
+        }
+      ],
+      "message": "Auto-merge: preserve existing code, add new content"
+    },
+    {
+      "id": "revert-1757437782822",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:09:42.822Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n\n\n// Auto-merged content\nselenium==4.5.0\npytest==7.1.3\npytest-html==3.2.0\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\naddopts = -v --tb=short\n\n\n// Auto-merged content\n[pytest]\naddopts = --html=report.html\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        },
+        {
+          "path": "src/pages/inventory_page.py",
+          "content": ""
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n\ndef test_valid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"standard_user\", \"secret_sauce\")\n    assert \"inventory.html\" in driver.current_url\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        },
+        {
+          "path": "src/tests/test_cart.py",
+          "content": ""
+        },
+        {
+          "path": "src/tests/test_checkout.py",
+          "content": ""
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\nThis project is designed to automate test cases for the [SauceDemo](https://www.saucedemo.com) website using Selenium and Python.\n\n## Setup\n\n1. **Clone the repo:**\n   ```bash\n   git clone <repo-url>\n   cd <repo-dir>\n   ```\n\n2. **Create a virtual environment:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`\n   ```\n\n3. **Install dependencies:**\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. **Download WebDriver:**\n   - Ensure you have the appropriate WebDriver for your browser (e.g., ChromeDriver for Chrome).\n   - Make sure WebDriver is in your PATH, or specify the path in `webdriver.Chrome()` in `test_login.py`.\n\n## Running the tests\n\nExecute all tests with:\n```bash\npytest\n```\n\nTo run tests in parallel, you can use the pytest-xdist plugin:\n```bash\npytest -n auto\n```\n\n## Project Structure\n\n- `src/pages`: Contains Page Object Model classes\n- `src/tests`: Contains test cases\n\n\n// Auto-merged content\n# Python Selenium Automation\n\n## Setup Instructions\n\n1. Ensure you have Python installed (suggested: Python 3.7+).\n2. Install the required Python packages:\n   ```bash\n   pip install -r requirements.txt\n   ```\n3. Ensure you have ChromeDriver installed and it's in your PATH.\n\n## Running the Tests\n\nExecute the following command to run the tests:\n```bash\npytest\n```\n\nThis will generate an HTML report as `report.html` in the project root."
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.10.0\npytest==7.2.1\npytest-html==3.2.0\n\n// Auto-merged content\nselenium==4.9.1\npytest==7.3.1\npytest-xdist==3.3.1\n\n\n// Auto-merged content\nselenium==4.5.0\npytest==7.1.3\npytest-html==3.2.0\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n// Auto-merged content\n[pytest]\naddopts = -v --tb=short\n\n\n// Auto-merged content\n[pytest]\naddopts = --html=report.html\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        },
+        {
+          "path": "src/pages/inventory_page.py",
+          "content": "from selenium.webdriver.common.by import By\n\nclass InventoryPage:\n    def __init__(self, driver):\n        self.driver = driver\n        self.inventory_list = (By.CLASS_NAME, 'inventory_list')\n\n    def is_inventory_displayed(self):\n        return self.driver.find_element(*self.inventory_list).is_displayed()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.login\ndef test_valid_login(driver):\n    driver.get('https://www.saucedemo.com')\n    login_page = LoginPage(driver)\n    inventory_page = InventoryPage(driver)\n    login_page.enter_username('standard_user')\n    login_page.enter_password('secret_sauce')\n    login_page.click_login()\n    assert inventory_page.is_inventory_displayed()\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        },
+        {
+          "path": "src/tests/test_cart.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.cart\ndef test_add_to_cart(driver):\n    # Implement test for adding items to cart\n    pass\n"
+        },
+        {
+          "path": "src/tests/test_checkout.py",
+          "content": "import pytest\nfrom selenium import webdriver\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.checkout\ndef test_checkout_process(driver):\n    # Implement test for checkout process\n    pass\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver installed.\n\n// Auto-merged content\n# Python Selenium Automation\n\nThis project is designed to automate test cases for the [SauceDemo](https://www.saucedemo.com) website using Selenium and Python.\n\n## Setup\n\n1. **Clone the repo:**\n   ```bash\n   git clone <repo-url>\n   cd <repo-dir>\n   ```\n\n2. **Create a virtual environment:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`\n   ```\n\n3. **Install dependencies:**\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. **Download WebDriver:**\n   - Ensure you have the appropriate WebDriver for your browser (e.g., ChromeDriver for Chrome).\n   - Make sure WebDriver is in your PATH, or specify the path in `webdriver.Chrome()` in `test_login.py`.\n\n## Running the tests\n\nExecute all tests with:\n```bash\npytest\n```\n\nTo run tests in parallel, you can use the pytest-xdist plugin:\n```bash\npytest -n auto\n```\n\n## Project Structure\n\n- `src/pages`: Contains Page Object Model classes\n- `src/tests`: Contains test cases\n\n\n// Auto-merged content\n# Python Selenium Automation\n\n## Setup Instructions\n\n1. Ensure you have Python installed (suggested: Python 3.7+).\n2. Install the required Python packages:\n   ```bash\n   pip install -r requirements.txt\n   ```\n3. Ensure you have ChromeDriver installed and it's in your PATH.\n\n## Running the Tests\n\nExecute the following command to run the tests:\n```bash\npytest\n```\n\nThis will generate an HTML report as `report.html` in the project root."
+        }
+      ],
+      "message": "Applied with conflict resolution"
+    },
+    {
+      "id": "revert-1757439990622",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:46:30.622Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.10.0\npytest==7.2.1\npytest-html==3.2.0\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n// Auto-merged content\n[pytest]\naddopts = -v --tb=short\n\n\n// Auto-merged content\n[pytest]\naddopts = --html=report.html\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        },
+        {
+          "path": "src/pages/inventory_page.py",
+          "content": "from selenium.webdriver.common.by import By\n\nclass InventoryPage:\n    def __init__(self, driver):\n        self.driver = driver\n        self.inventory_list = (By.CLASS_NAME, 'inventory_list')\n\n    def is_inventory_displayed(self):\n        return self.driver.find_element(*self.inventory_list).is_displayed()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.login\ndef test_valid_login(driver):\n    driver.get('https://www.saucedemo.com')\n    login_page = LoginPage(driver)\n    inventory_page = InventoryPage(driver)\n    login_page.enter_username('standard_user')\n    login_page.enter_password('secret_sauce')\n    login_page.click_login()\n    assert inventory_page.is_inventory_displayed()\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n"
+        },
+        {
+          "path": "src/tests/test_inventory.py",
+          "content": ""
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver install"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.10.0\npytest==7.2.1\npytest-html==3.2.0\n\n\n// Auto-merged content\nselenium==4.2.0\npytest==7.1.2\npytest-html==3.1.1"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n// Auto-merged content\n[pytest]\naddopts = -v --tb=short\n\n\n// Auto-merged content\n[pytest]\naddopts = --html=report.html\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        },
+        {
+          "path": "src/pages/inventory_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\nclass InventoryPage:\n    def __init__(self, driver):\n        self.driver = driver\n        self.inventory_list = (By.CLASS_NAME, 'inventory_list')\n\n    def is_inventory_displayed(self):\n        return self.driver.find_element(*self.inventory_list).is_displayed()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.inventory_items = (By.CLASS_NAME, 'inventory_item')\n        self.cart_button = (By.CLASS_NAME, 'shopping_cart_link')\n\n\n    def get_inventory_item_count(self):\n        return len(self.driver.find_elements(*self.inventory_items))\n\n\n    def go_to_cart(self):\n        self.driver.find_element(*self.cart_button).click()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.login\ndef test_valid_login(driver):\n    driver.get('https://www.saucedemo.com')\n    login_page = LoginPage(driver)\n    inventory_page = InventoryPage(driver)\n    login_page.enter_username('standard_user')\n    login_page.enter_password('secret_sauce')\n    login_page.click_login()\n    assert inventory_page.is_inventory_displayed()\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n\n\ndef login(driver):\n    driver.get('https://www.saucedemo.com/')\n    return LoginPage(driver)\n\n\ndef inventory(driver, login):\n    login.enter_username('standard_user')\n    login.enter_password('secret_sauce')\n    login.click_login()\n    return InventoryPage(driver)\n\n"
+        },
+        {
+          "path": "src/tests/test_inventory.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n@pytest.fixture\ndef inventory(driver):\n    login = LoginPage(driver)\n    driver.get('https://www.saucedemo.com/')\n    login.enter_username('standard_user')\n    login.enter_password('secret_sauce')\n    login.click_login()\n    return InventoryPage(driver)\n\n\ndef test_inventory_items_count(inventory):\n    # Assert that the inventory page has items\n    assert inventory.get_inventory_item_count() > 0\n\n\ndef test_go_to_cart(inventory):\n    # Click on cart button and assert navigation\n    inventory.go_to_cart()\n    assert 'cart.html' in inventory.driver.current_url\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver install\n\n// Auto-merged content\n# Python Selenium Automation\n\n## Setup Instructions\n\n1. Ensure you have Python 3.x installed.\n2. Clone this repository.\n3. Navigate to the project directory.\n4. Install dependencies:\n   ```sh\n   pip install -r requirements.txt\n   ```\n5. Download the ChromeDriver for your operating system and ensure it is in your PATH.\n\n## Running Tests\n\nRun the test suite using:\n```sh\npytest\n```\n\nThis will execute the tests and generate an HTML report.\n\n- Test report will be available in the `report.html` file.\n"
+        }
+      ],
+      "message": "Auto-merge: preserve existing code, add new content"
+    },
+    {
+      "id": "revert-1757440450643",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:54:10.643Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "selenium==4.10.0\npytest==7.2.1\npytest-html==3.2.0\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest-html==3.2.0\npytest==7.2.1\nselenium==4.13.0"
+        }
+      ],
+      "message": "Auto-merged: preserve existing code, add new content for requirements.txt"
+    },
+    {
+      "id": "revert-1757440465878",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:54:25.878Z",
+      "filesBefore": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n\naddopts = --tb=short --strict-markers"
+        }
+      ],
+      "message": "Auto-merged: preserve existing code, add new content for pytest.ini"
+    },
+    {
+      "id": "revert-1757440489413",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:54:49.413Z",
+      "filesBefore": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n"
+        }
+      ],
+      "message": "Auto-merged: preserve existing code, add new content for src/pages/login_page.py"
+    },
+    {
+      "id": "revert-1757440533546",
+      "projectId": "proj-1757415401394",
+      "createdAt": "2025-09-09T17:55:33.546Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest-html==3.2.0\npytest==7.2.1\nselenium==4.13.0"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n\naddopts = --tb=short --strict-markers"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n"
+        },
+        {
+          "path": "src/tests/test_login_negative.py",
+          "content": ""
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver install\n"
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest-html==3.2.0\npytest==7.2.1\nselenium==4.13.0"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --html=report.html\n\n\naddopts = --tb=short --strict-markers"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n"
+        },
+        {
+          "path": "src/tests/test_login_negative.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\nclass TestLoginNegative:\n    @pytest.fixture\n    def setup(self):\n        self.driver = webdriver.Chrome()\n        self.driver.get('https://www.saucedemo.com')\n        yield\n        self.driver.quit()\n\n    def test_invalid_username(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('invalid_user')\n        login_page.enter_password('secret_sauce')\n        login_page.click_login()\n        assert 'Epic sadface: Username and password do not match' in login_page.get_error_message()\n\n    def test_invalid_password(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('standard_user')\n        login_page.enter_password('wrong_password')\n        login_page.click_login()\n        assert 'Epic sadface: Username and password do not match' in login_page.get_error_message()\n\n    def test_empty_username(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('')\n        login_page.enter_password('secret_sauce')\n        login_page.click_login()\n        assert 'Epic sadface: Username is required' in login_page.get_error_message()\n\n    def test_empty_password(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('standard_user')\n        login_page.enter_password('')\n        login_page.click_login()\n        assert 'Epic sadface: Password is required' in login_page.get_error_message()\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver install\n"
+        }
+      ],
+      "message": "Auto-merge: preserve existing code, add new content"
+    },
+    {
+      "id": "revert-1757442313044",
+      "projectId": "proj-1757441677444",
+      "createdAt": "2025-09-09T18:25:13.044Z",
+      "filesBefore": [
+        {
+          "path": "requirements.txt",
+          "content": ""
+        },
+        {
+          "path": "pytest.ini",
+          "content": ""
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": ""
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": ""
+        },
+        {
+          "path": "src/tests/login.feature",
+          "content": ""
+        },
+        {
+          "path": "README.md",
+          "content": ""
+        }
+      ],
+      "filesAfter": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest==7.1.2\npytest-bdd==5.0.0\nselenium==4.4.3\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    bdd: BDD tests\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def go_to_login_page(self):\n        self.driver.get('https://www.saucedemo.com/')\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(By.ID, 'user-name').send_keys(username)\n        self.driver.find_element(By.ID, 'password').send_keys(password)\n        self.driver.find_element(By.ID, 'login-button').click()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom pytest_bdd import scenarios, given, when, then\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\nscenarios('login.feature')\n\n@pytest.fixture\n\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n@given('the user is on the login page')\ndef user_on_login_page(driver):\n    login_page = LoginPage(driver)\n    login_page.go_to_login_page()\n\n@when('the user enters username \"<username>\" and password \"<password>\"')\ndef user_enters_credentials(driver, username, password):\n    login_page = LoginPage(driver)\n    login_page.login(username, password)\n\n@then('the user should be logged in')\ndef user_logged_in(driver):\n    assert \"inventory\" in driver.current_url\n"
+        },
+        {
+          "path": "src/tests/login.feature",
+          "content": "Feature: Login\n\n  Scenario: Successful login with valid credentials\n    Given the user is on the login page\n    When the user enters username \"standard_user\" and password \"secret_sauce\"\n    Then the user should be logged in\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# PyTestBDD Project\n\n## Setup\n\n1. Install Python 3.x\n2. Install the dependencies:\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n3. Ensure `chromedriver` is installed and accessible in your PATH.\n\n## Running Tests\n\nTo execute the tests, run:\n```bash\npytest\n```\n"
+        }
+      ],
+      "message": ""
     }
   ]
 }

@@ -9,6 +9,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
+    docker.io \
     git \
     build-essential \
     software-properties-common \
@@ -110,23 +111,25 @@ RUN npm install -g \
 
 # Install Python testing tools and frameworks (with compatible versions)
 RUN pip install --upgrade pip && pip install \
-    pytest==7.2.2 \
+    pytest==7.2.0 \
     unittest-xml-reporting==3.2.0 \
     requests==2.31.0 \
     httpx==0.25.2 \
     tavern==2.3.0 \
     schemathesis==3.19.7 \
     behave==1.2.6 \
-    pytest-bdd==6.1.1 \
+    pytest-bdd==4.0.2 \
     robotframework==6.1.1 \
     robotframework-seleniumlibrary==6.2.0 \
     locust==2.17.0 \
     playwright==1.40.0 \
-    selenium==4.15.2 \
+    selenium==4.8.0 \
     allure-pytest==2.13.2 \
     pytest-html==4.1.1 \
     pact-python==2.2.1 \
-    responses==0.24.1
+    responses==0.24.1 \
+    glob2==0.7 \
+    py==1.11.0
 
 # Install Ruby testing tools and gems using Bundler (Gemfile)
 # Use Bundler to resolve gem dependency conflicts (e.g. pact/rack)
@@ -201,6 +204,76 @@ RUN wget -q https://github.com/allure-framework/allure2/releases/download/2.24.1
 
 # Update PATH with all tool locations
 ENV PATH="/opt/jmeter/bin:/opt/zap:/opt/allure/bin:$PATH"
+ENV RUNNER_IMAGE=qa-dashboard:latest
+
+# ---------------------------------------------------------------------------
+# Browsers + WebDrivers for Selenium (Chrome, Firefox, Edge)
+# - Playwright image already has its own browsers for Playwright tests, but
+#   Selenium needs the system browser binaries + matching drivers.
+# - We install Chrome for Testing + chromedriver, Firefox + geckodriver,
+#   and Microsoft Edge + msedgedriver.
+# ---------------------------------------------------------------------------
+
+# Common runtime libraries for headless browsers
+RUN apt-get update && apt-get install -y \
+    xvfb xauth \
+    libasound2 libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 \
+    libx11-xcb1 libxrandr2 libxss1 libxcomposite1 libxcursor1 libxi6 libxtst6 \
+    fonts-liberation \
+    libglib2.0-0 libdrm2 libdbus-1-3 libxdamage1 libxshmfence1 \
+    libpango-1.0-0 libpangocairo-1.0-0 xdg-utils libu2f-udev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1) Chrome for Testing (stable) + chromedriver, with wrapper for container flags
+ARG CFT_VERSION=140.0.7339.80
+RUN mkdir -p /opt/cft \
+    && wget -q https://storage.googleapis.com/chrome-for-testing-public/${CFT_VERSION}/linux64/chrome-linux64.zip -O /opt/cft/chrome.zip \
+    && wget -q https://storage.googleapis.com/chrome-for-testing-public/${CFT_VERSION}/linux64/chromedriver-linux64.zip -O /opt/cft/chromedriver.zip \
+    && unzip -q /opt/cft/chrome.zip -d /opt/cft \
+    && unzip -q /opt/cft/chromedriver.zip -d /opt/cft \
+    && rm -f /opt/cft/chrome.zip /opt/cft/chromedriver.zip \
+    && install -m 0755 /opt/cft/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
+    && printf '#!/bin/bash\nexec /opt/cft/chrome-linux64/chrome --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/local/bin/google-chrome \
+    && chmod +x /usr/local/bin/google-chrome \
+    && ln -sf /usr/local/bin/google-chrome /usr/bin/google-chrome \
+    && ln -sf /usr/local/bin/chromedriver /usr/bin/chromedriver
+ENV CHROME_BIN=/usr/local/bin/google-chrome
+
+# 2) Firefox (latest) + geckodriver
+ARG GECKODRIVER_VERSION=0.34.0
+RUN apt-get update && apt-get install -y firefox && rm -rf /var/lib/apt/lists/* \
+    && wget -q https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -O /tmp/geckodriver.tgz \
+    && tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin \
+    && chmod +x /usr/local/bin/geckodriver \
+    && rm -f /tmp/geckodriver.tgz
+
+# 3) Microsoft Edge (stable) + msedgedriver
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg \
+    && echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge.list \
+    && apt-get update && apt-get install -y microsoft-edge-stable && rm -rf /var/lib/apt/lists/* \
+    && EDGE_VER=$(microsoft-edge --version | awk '{print $3}') \
+    && echo "Edge version: $EDGE_VER" \
+    && MAJOR=${EDGE_VER%%.*} \
+    && echo "Major version: $MAJOR" \
+    && mkdir -p /opt/edgedriver \
+    && echo "Attempting to download Edge driver..." \
+    && (wget -q https://msedgedriver.azureedge.net/${EDGE_VER}/edgedriver_linux64.zip -O /tmp/edgedriver.zip \
+    || wget -q https://msedgedriver.azureedge.net/${MAJOR}.0.3485.54/edgedriver_linux64.zip -O /tmp/edgedriver.zip \
+    || wget -q https://github.com/MicrosoftDocs/edge-selenium-tools/releases/download/3.141.4/edgedriver_linux64.zip -O /tmp/edgedriver.zip \
+    || echo "Warning: Could not download Edge driver from any source, Edge tests may not work") \
+    && if [ -f /tmp/edgedriver.zip ] && [ -s /tmp/edgedriver.zip ]; then \
+    echo "Edge driver downloaded successfully, extracting..." \
+    && unzip -q /tmp/edgedriver.zip -d /opt/edgedriver \
+    && chmod +x /opt/edgedriver/msedgedriver \
+    && ln -sf /opt/edgedriver/msedgedriver /usr/local/bin/msedgedriver \
+    && rm -f /tmp/edgedriver.zip \
+    && echo "Edge driver installed successfully"; \
+    else \
+    echo "Edge driver download failed or file is empty, continuing without Edge driver..."; \
+    rm -f /tmp/edgedriver.zip; \
+    fi \
+    && printf '#!/bin/bash\nexec /usr/bin/microsoft-edge --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/local/bin/microsoft-edge \
+    && chmod +x /usr/local/bin/microsoft-edge
 
 # Create a verification script to check all installations
 RUN echo '#!/bin/bash' > /opt/verify-tools.sh && \
@@ -239,7 +312,17 @@ ENV MAVEN_HOME=/opt/maven
 ENV DOTNET_ROOT=/usr/share/dotnet
 ENV GOPATH=/root/go
 ENV GOROOT=/usr/local/go
-ENV PATH="$MAVEN_HOME/bin:$DOTNET_ROOT:$GOROOT/bin:$GOPATH/bin:/opt/jmeter/bin:/opt/zap:/opt/allure/bin:/root/.composer/vendor/bin:$PATH"
+ENV PATH="$MAVEN_HOME/bin:$DOTNET_ROOT:$DOTNET_ROOT/tools:$GOROOT/bin:$GOPATH/bin:/opt/jmeter/bin:/opt/zap:/opt/allure/bin:/root/.composer/vendor/bin:/opt/cft:$PATH"
+
+# Create startup script for services
+RUN echo '#!/bin/bash' > /opt/startup.sh && \
+    echo '# Start Xvfb for headless browser testing' >> /opt/startup.sh && \
+    echo 'Xvfb :99 -screen 0 1920x1080x24 &' >> /opt/startup.sh && \
+    echo 'export DISPLAY=:99' >> /opt/startup.sh && \
+    echo 'sleep 2' >> /opt/startup.sh && \
+    echo '# Execute the command passed to the container' >> /opt/startup.sh && \
+    echo 'exec "$@"' >> /opt/startup.sh && \
+    chmod +x /opt/startup.sh
 
 # Set up working directory
 WORKDIR /app
@@ -259,12 +342,14 @@ RUN cd frontend && npm install
 
 COPY . .
 
-# Build the frontend
-RUN cd frontend && npm run build
+# Build the backend and frontend
+RUN npm run build --prefix backend
+RUN npm run build --prefix frontend
 
 # Expose the ports for backend and frontend
 EXPOSE 3000-3100
 EXPOSE 3001
 
-# Start both frontend and backend with enforced ports
+# Start both frontend and backend with enforced ports using startup script
+ENTRYPOINT ["/opt/startup.sh"]
 CMD ["concurrently", "env PORT=3001 npm --prefix frontend start", "env PORT=3000 npm --prefix backend start"]

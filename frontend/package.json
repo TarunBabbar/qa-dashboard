@@ -1,8 +1,11 @@
 {
+  "name": "qa-dashboard-frontend",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -p 3001"
   },
   "dependencies": {
     "@types/node": "^24.3.0",

@@ -16,6 +16,9 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import Prism from "prism-react-renderer/prism";
 import Editor1 from "@monaco-editor/react";
+import DiffViewer from '../components/DiffViewer';
+import MergeConflictDialog from '../components/MergeConflictDialog';
+import { smartMergeCode, MergeResult } from '../lib/codeMerger';
 
 
 
@@ -111,9 +114,18 @@ function normalizeLang(lang?: string): Language {
 
 // --- Robust JSON files extraction ---
 function coerceFilesArray(val: any): { path: string; content: string }[] {
-  const isRec = (x: any) => x && typeof x === 'object' && typeof x.path === 'string' && typeof x.content === 'string';
-  if (Array.isArray(val)) return val.filter(isRec);
-  if (val && Array.isArray((val as any).files)) return (val as any).files.filter(isRec);
+  const coerceOne = (x: any) => {
+    if (!x || typeof x !== 'object' || typeof x.path !== 'string') return null;
+    let content: any = (x as any).content;
+    // Accept objects (e.g., package.json returned as structured JSON) and stringify them
+    if (typeof content !== 'string') {
+      try { content = JSON.stringify(content, null, 2); }
+      catch { content = String(content ?? ''); }
+    }
+    return { path: x.path, content };
+  };
+  if (Array.isArray(val)) return val.map(coerceOne).filter(Boolean) as any;
+  if (val && Array.isArray((val as any).files)) return (val as any).files.map(coerceOne).filter(Boolean) as any;
   return [];
 }
 
@@ -136,6 +148,59 @@ function tryParseJsonArrayLoose(raw: string): { path: string; content: string }[
   // 4) nothing workable
   return [];
 }
+
+// Normalize AI-returned file path by removing leading project folder
+function normalizeAiPath(filePath: string, projName: string, nsName: string): string {
+  if (!filePath) return filePath;
+  let s = String(filePath).replace(/\\/g, '/');
+  s = s.replace(/^\.+\//, '').replace(/^\/+/, '');
+
+  const escape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const candidates = [projName, nsName].filter(Boolean).map(escape);
+  for (const c of candidates) {
+    if (!c) continue;
+    const re = new RegExp(`^${c}(?:/|$)`, 'i');
+    if (re.test(s)) {
+      s = s.replace(re, '');
+      break;
+    }
+  }
+  s = s.replace(/^\/+/, '');
+  return s || filePath; // fallback
+}
+
+// Best-effort decoding of escaped characters that sometimes arrive from the model
+function normalizeCodeContent(text: string): string {
+  if (typeof text !== 'string') return text as any;
+  let s = text;
+  
+  // Handle newlines first (check if we have escaped newlines and minimal real newlines)
+  const hasRealNL = s.indexOf('\n') !== -1;
+  const hasEscNL = s.indexOf('\\n') !== -1;
+  if (hasEscNL && (!hasRealNL || (s.match(/\\n/g)?.length || 0) >= (s.match(/\n/g)?.length || 0))) {
+    s = s.replace(/\\r\\n/g, '\n');
+    s = s.replace(/\\n/g, '\n');
+    s = s.replace(/\\r/g, '\n');
+  }
+  
+  // Handle tabs (check if we have escaped tabs and no real tabs)
+  const hasRealTab = s.indexOf('\t') !== -1;
+  const hasEscTab = s.indexOf('\\t') !== -1;
+  if (hasEscTab && !hasRealTab) {
+    s = s.replace(/\\t/g, '\t');
+  }
+  
+  // Handle other common escape sequences that might appear in code
+  s = s.replace(/\\"/g, '"');     // Escaped quotes
+  s = s.replace(/\\'/g, "'");     // Escaped single quotes
+  s = s.replace(/\\\\/g, '\\');   // Escaped backslashes (must be last)
+  
+  return s;
+}
+
+// Remove any leading "Project:" header comments the model might include
+// (reverted) no header stripping
+function stripProjectHeader(content: string): string { return content; }
 
 function CodeBlock({
   code,
@@ -219,42 +284,121 @@ function defaultPrismLangFromMeta(meta: any): Language {
 
 
 function AIAnswerRenderer({ answer, lightMode, defaultLang }: { answer: string; lightMode: boolean; defaultLang: Language; }) {
-  const themed = lightMode ? githubTheme : vsDarkTheme;
-
-  // 👇 Type the components so TS knows about `inline`
   const mdComponents: Components = {
-    h1: ({node, ...props}) => <h1 className={`text-xl font-bold mt-2 mb-2 ${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
-    h2: ({node, ...props}) => <h2 className={`text-lg font-semibold mt-2 mb-2 ${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
-    p:  ({node, ...props}) => <p  className={`text-sm leading-relaxed mb-2 ${lightMode ? 'text-slate-800' : 'text-slate-200'}`} {...props} />,
-    ul: ({node, ...props}) => <ul className={`list-disc ml-5 text-sm mb-2 ${lightMode ? 'text-slate-700' : 'text-slate-200'}`} {...props} />,
-    ol: ({node, ...props}) => <ol className={`list-decimal ml-5 text-sm mb-2 ${lightMode ? 'text-slate-700' : 'text-slate-200'}`} {...props} />,
-    li: ({node, ...props}) => <li className="mb-1" {...props} />,
-    strong: ({node, ...props}) => <strong className={`${lightMode ? 'text-slate-900' : 'text-white'}`} {...props} />,
-
-    // <-- THIS is the one that needs `inline`
-    code({ inline, className, children } : any) {
-  const match = /language-([\w#+-]+)/.exec(className || "");
-  const lang = match?.[1];
-  const codeStr = String(children ?? "");
-
-  if (inline) {
-    return (
-      <code
-        className={`${className ?? ""} px-1 py-0.5 rounded ${lightMode ? 'inlinecode--light' : 'inlinecode--dark'}`}
-      >
+    h1: ({node, ...props}) => (
+      <h1 className={`text-2xl font-bold mt-6 mb-4 pb-2 border-b ${
+        lightMode ? 'text-slate-900 border-slate-200' : 'text-white border-slate-600'
+      }`} {...props} />
+    ),
+    h2: ({node, ...props}) => (
+      <h2 className={`text-xl font-semibold mt-5 mb-3 ${
+        lightMode ? 'text-slate-900' : 'text-white'
+      }`} {...props} />
+    ),
+    h3: ({node, ...props}) => (
+      <h3 className={`text-lg font-medium mt-4 mb-2 ${
+        lightMode ? 'text-slate-800' : 'text-slate-100'
+      }`} {...props} />
+    ),
+    p: ({node, ...props}) => (
+      <p className={`text-sm leading-relaxed mb-3 ${
+        lightMode ? 'text-slate-700' : 'text-slate-200'
+      }`} {...props} />
+    ),
+    ul: ({node, ...props}) => (
+      <ul className={`space-y-1 mb-4 ${
+        lightMode ? 'text-slate-700' : 'text-slate-200'
+      }`} {...props} />
+    ),
+    ol: ({node, ...props}) => (
+      <ol className={`list-decimal list-inside space-y-1 mb-4 ml-4 ${
+        lightMode ? 'text-slate-700' : 'text-slate-200'
+      }`} {...props} />
+    ),
+    li: ({node, children, ...props}) => (
+      <li className={`mb-1 flex items-start ${
+        lightMode ? 'text-slate-700' : 'text-slate-200'
+      }`} {...props}>
+        <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-2 flex-shrink-0"></span>
+        <span className="flex-1">{children}</span>
+      </li>
+    ),
+    strong: ({node, children, ...props}) => (
+      <strong className={`font-semibold ${
+        lightMode ? 'text-slate-900' : 'text-white'
+      }`} {...props}>
         {children}
-      </code>
-    );
-  }
-  const finalLang = (lang as string) || defaultLang;
-  return <CodeBlock code={codeStr} lang={finalLang} lightMode={lightMode} />;
-},};
+      </strong>
+    ),
+    em: ({node, ...props}) => (
+      <em className={`italic ${
+        lightMode ? 'text-slate-600' : 'text-slate-300'
+      }`} {...props} />
+    ),
+    blockquote: ({node, ...props}) => (
+      <blockquote className={`border-l-4 pl-4 py-2 my-4 ${
+        lightMode ? 'border-blue-400 bg-blue-50 text-slate-700' : 'border-blue-500 bg-blue-900/20 text-slate-200'
+      }`} {...props} />
+    ),
+    hr: ({node, ...props}) => (
+      <hr className={`my-6 border-0 h-px ${
+        lightMode ? 'bg-slate-200' : 'bg-slate-600'
+      }`} {...props} />
+    ),
+    code({ inline, className, children }: any) {
+      const codeStr = String(children ?? "").trim();
+      const match = /language-([\w#+-]+)/.exec(className || "");
+      const lang = match?.[1];
+
+      if (inline) {
+        // ONLY render as code block if it contains actual code syntax
+        // Everything else (filenames, project names, single words) should be normal text
+        const hasCodeSyntax = codeStr.includes('{') || 
+                             codeStr.includes('}') || 
+                             (codeStr.includes('(') && codeStr.includes(')')) ||
+                             (codeStr.includes('[') && codeStr.includes(']')) ||
+                             codeStr.includes(';') ||
+                             codeStr.includes('function ') ||
+                             codeStr.includes('def ') ||
+                             codeStr.includes('class ') ||
+                             codeStr.includes('import ') ||
+                             codeStr.includes('const ') ||
+                             codeStr.includes('var ') ||
+                             codeStr.includes('let ') ||
+                             codeStr.includes('if (') ||
+                             codeStr.includes('for (') ||
+                             codeStr.includes('while (');
+        
+        if (hasCodeSyntax) {
+          return (
+            <code className={`font-mono text-sm px-1.5 py-0.5 rounded ${
+              lightMode ? 'bg-slate-100 text-slate-800' : 'bg-slate-800 text-slate-200'
+            }`}>
+              {children}
+            </code>
+          );
+        }
+        
+        // Everything else: just normal text, no special styling
+        return <span>{children}</span>;
+      }
+      
+      const finalLang = (lang as string) || defaultLang;
+      return <CodeBlock code={codeStr} lang={finalLang} lightMode={lightMode} />;
+    },
+  };
 
   return (
     <div className="assistant-msg mt-3">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-        {answer || ""}
-      </ReactMarkdown>
+      <div className={`rounded-lg p-4 ${
+        lightMode 
+          ? 'bg-white border border-slate-200' 
+          : 'bg-slate-800/40 border border-slate-700/40'
+      }`}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {answer}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 }
@@ -539,6 +683,12 @@ const fallbackLang = defaultPrismLangFromMeta(projectMeta);
   const [scenario, setScenario] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
+  
+  // Smart merge state
+  const [mergeResults, setMergeResults] = useState<any[]>([]);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<{ path: string; content: string }[]>([]);
+  const [resolvedConflicts, setResolvedConflicts] = useState<Record<string, string>>({});
   const [aiFiles, setAiFiles] = useState<{ path: string; content: string }[]>([]);
   const [appliedMap, setAppliedMap] = useState<Record<string, { applied: boolean; revertId?: string }>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -809,7 +959,7 @@ const cancelCreate = () => {
       });
 
       // keep tabs/explorer in sync with the saved content
-      setFiles(prev => prev.map(f => f.path === activeFile.path ? { ...f, content: activeFile.content ?? "" } : f));
+      setFiles(prev => prev.map(f => f.path === activeFile.path ? { ...f, content: normalizeCodeContent(activeFile.content ?? "") } : f));
 
       // clear dirty flag for this file
       setDirtyPaths(prev => {
@@ -1376,7 +1526,7 @@ const refreshProject = async () => {
     const res = await getProject(projectId);
     if (res?.data) {
       setProjectName(res.data.name || null);
-      const fetchedFiles = (res.data as any).files ?? [];
+      const fetchedFiles = ((res.data as any).files ?? []).map((x: any) => ({ path: x.path, content: normalizeCodeContent(String(x.content ?? '')) }));
       setFiles(fetchedFiles);
       setActiveFile(null);
       setProjectMeta(res.data);
@@ -1508,8 +1658,17 @@ const askPrompt = [
   // 1) Get the brief (await), with stack constraints
  const briefPrompt = [
   `Context: Use ONLY ${toolToUse} with ${langToUse}.`,
-  `Project name: "${projName}" (namespace-safe: ${nsName}). Use the name, not the id.`,
+  `Project name: "${projName}" (namespace-safe: ${nsName}).`,
   `Keep the plan crisp; bullets only; no filler.`,
+  ``,
+  `Plan MUST always include the correct dependency/manifest file for the language:`,
+  `- Node.js → package.json + lockfile`,
+  `- Python → requirements.txt or pyproject.toml`,
+  `- Java → pom.xml or build.gradle`,
+  `- C#/.NET → .csproj`,
+  `- Ruby → Gemfile`,
+  `- Go → go.mod`,
+  `- PHP → composer.json`,
   ``,
   promptText
 ].join("\n");
@@ -1535,13 +1694,16 @@ const askPrompt = [
   const genPrompt = [
   `User request: ${promptText}`,
   `Project: "${projName}" (namespace-safe: ${nsName}).`,
-  `Follow EXACTLY the plan below using ${toolToUse} + ${langToUse}. Do not introduce other tools/frameworks.`,
+  `Follow EXACTLY the plan below using ${toolToUse} + ${langToUse}.`,
   `---BEGIN PLAN---`,
   plan,
   `---END PLAN---`,
-  `Generate only the files implementing this plan.`,
-  `Add this header to each file: // Project: ${projName}`,
-  `When a namespace or package is needed, use: ${nsName}`
+  ``,
+  `IMPORTANT: Always generate the manifest/dependency file FIRST,`,
+  `then config files, then source code files.`,
+  `Manifests are mandatory: package.json, requirements.txt, pom.xml, .csproj, Gemfile, go.mod, composer.json (depending on language).`,
+  ``,
+  `Output must ONLY be a single JSON array of { path, content } objects.`
 ].join("\n");
 
 
@@ -1588,7 +1750,8 @@ const askPrompt = [
       }
     } catch {}
 
-    setAiFiles(parsed || []);
+    const normalized = (parsed || []).map(f => ({ path: normalizeAiPath(f.path, projName, nsName), content: f.content }));
+    setAiFiles(normalized);
     setCodeReady(true);
 
     // ✅ Replace the status message with the final banner
@@ -1631,9 +1794,40 @@ const askPrompt = [
 
   async function autoApplyAll(parsedFiles: { path: string; content: string }[]) {
     if (!projectId) return;
-  // use shared backendBase from lib/api
+    
     try {
-      const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: parsedFiles, message: scenario }) });
+      const toSend = parsedFiles.map(f => ({ path: f.path, content: normalizeCodeContent(f.content) }));
+      
+      // First, preview the merge to check for conflicts
+      const previewRes = await fetch(`${backendBase}/api/projects/${projectId}/preview-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: toSend })
+      });
+      
+      if (previewRes.ok) {
+        const previewData = await previewRes.json();
+        const hasConflicts = previewData.mergeResults.some((r: any) => r.hasConflicts);
+        
+        if (hasConflicts) {
+          // Show merge dialog for conflict resolution
+          setPendingFiles(toSend);
+          setMergeResults(previewData.mergeResults);
+          setShowMergeDialog(true);
+          return;
+        }
+      }
+      
+      // No conflicts, apply directly using the smart merge endpoint
+      const res = await fetch(`${backendBase}/api/projects/${projectId}/apply-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          files: toSend, 
+          message: scenario 
+        })
+      });
+      
       const json = await res.json();
       if (res.ok) {
         const revertId = json.revertId as string | undefined;
@@ -1641,49 +1835,201 @@ const askPrompt = [
         parsedFiles.forEach(f => m[f.path] = { applied: true, revertId });
         setAppliedMap(m);
 
-        // Merge applied files into current file list so explorer reflects changes immediately
+        // Merge applied files into current file list using the merged content
         setFiles(prev => {
           const map = new Map<string, FileItem>();
           prev.forEach(pf => map.set(pf.path, { ...pf }));
-          parsedFiles.forEach(f => map.set(f.path, { path: f.path, content: f.content }));
+          
+          // Use merged content from the response
+          json.mergeResults?.forEach((result: any) => {
+            if (result.mergedContent) {
+              map.set(result.path, { path: result.path, content: result.mergedContent });
+            }
+          });
+          
           return Array.from(map.values());
         });
 
-        // Optionally open the first applied file
-        if (parsedFiles.length > 0) {
-          const first = parsedFiles[0];
-          setActiveFile({ path: first.path, content: first.content });
+        // Optionally open the first applied file with merged content
+        if (parsedFiles.length > 0 && json.mergeResults?.length > 0) {
+          const first = json.mergeResults[0];
+          setActiveFile({ path: first.path, content: first.mergedContent || first.content });
         }
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-apply error: ' + JSON.stringify(json) }]);
       }
-    } catch (err: any) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-apply failed: ' + (err.message || String(err)) }]);
+    } catch (error) {
+      console.error('Auto apply error:', error);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-apply error: ' + (error as Error).message }]);
+    }
+  }
+
+  // Auto-merge all files that preserves existing code and only adds new content
+  async function autoMergeAll(parsedFiles: { path: string; content: string }[]) {
+    if (!projectId) return;
+    
+    try {
+      const toSend = parsedFiles.map(f => ({ path: f.path, content: normalizeCodeContent(f.content) }));
+      
+      // Use the auto-merge endpoint directly
+      const res = await fetch(`${backendBase}/api/projects/${projectId}/auto-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          files: toSend, 
+          message: `Auto-merge: ${scenario || 'preserve existing code, add new content'}` 
+        })
+      });
+      
+      const json = await res.json();
+      if (res.ok) {
+        const revertId = json.revertId as string | undefined;
+        const m: Record<string, { applied: boolean; revertId?: string }> = {};
+        parsedFiles.forEach(f => m[f.path] = { applied: true, revertId });
+        setAppliedMap(m);
+
+        // Merge applied files into current file list using the merged content
+        setFiles(prev => {
+          const map = new Map<string, FileItem>();
+          prev.forEach(pf => map.set(pf.path, { ...pf }));
+          
+          // Use merged content from the response
+          json.mergedFiles?.forEach((result: any) => {
+            if (result.content) {
+              map.set(result.path, { path: result.path, content: result.content });
+            }
+          });
+          
+          return Array.from(map.values());
+        });
+
+        // Show success message
+        const successMsg = `Auto-merged successfully! ${json.stats?.newFiles || 0} new files, ${json.stats?.mergedFiles || 0} files updated.`;
+        setMessages(prev => [...prev, { role: 'assistant', content: successMsg }]);
+
+        // Optionally open the first applied file with merged content
+        if (parsedFiles.length > 0 && json.mergedFiles?.length > 0) {
+          const first = json.mergedFiles[0];
+          setActiveFile({ path: first.path, content: first.content });
+        }
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-merge error: ' + JSON.stringify(json) }]);
+      }
+    } catch (error) {
+      console.error('Auto merge error:', error);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Auto-merge error: ' + (error as Error).message }]);
     }
   }
 
   async function applyFileNow(f: { path: string; content: string }) {
     if (!projectId) return;
-  // use shared backendBase from lib/api
+    
     try {
-      const res = await fetch(`${backendBase}/api/ai/apply-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, files: [f], message: 'Applied single file ' + f.path }) });
+      const one = { path: f.path, content: normalizeCodeContent(f.content) };
+      
+      // First, preview the merge to check for conflicts
+      const previewRes = await fetch(`${backendBase}/api/projects/${projectId}/preview-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: [one] })
+      });
+      
+      if (previewRes.ok) {
+        const previewData = await previewRes.json();
+        const mergeResult = previewData.mergeResults[0];
+        
+        if (mergeResult && mergeResult.hasConflicts) {
+          // Show merge dialog for conflict resolution
+          setPendingFiles([one]);
+          setMergeResults(previewData.mergeResults);
+          setShowMergeDialog(true);
+          return;
+        }
+      }
+      
+      // No conflicts, apply directly using the smart merge endpoint
+      const res = await fetch(`${backendBase}/api/projects/${projectId}/apply-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          files: [one], 
+          message: 'Applied single file ' + f.path 
+        })
+      });
+      
       const json = await res.json();
       if (res.ok) {
         setAppliedMap(m => ({ ...m, [f.path]: { applied: true, revertId: json.revertId } }));
+
+        // Use the merged content from the response
+        const appliedFile = json.mergeResults?.find((r: any) => r.path === f.path);
+        const finalContent = appliedFile?.mergedContent || f.content;
 
         // Merge/insert the applied file into the explorer list and keep content in sync
         setFiles(prev => {
           const found = prev.find(p => p.path === f.path);
           if (found) {
-            return prev.map(p => p.path === f.path ? { path: f.path, content: f.content } : p);
+            return prev.map(p => p.path === f.path ? { path: f.path, content: finalContent } : p);
           }
-          return [...prev, { path: f.path, content: f.content }];
+          return [...prev, { path: f.path, content: finalContent }];
         });
 
         // If the active file is the same path, update its content
-        setActiveFile(prev => prev && prev.path === f.path ? { path: f.path, content: f.content } : prev);
+        setActiveFile(prev => prev && prev.path === f.path ? { path: f.path, content: finalContent } : prev);
       }
-    } catch {}
+    } catch (error) {
+      console.error('Apply file error:', error);
+    }
+  }
+
+  // Auto-merge function that preserves existing code and only adds new content
+  async function autoMergeFile(f: { path: string; content: string }) {
+    if (!projectId) return;
+    
+    try {
+      const one = { path: f.path, content: normalizeCodeContent(f.content) };
+      
+      // Use the auto-merge endpoint
+      const res = await fetch(`${backendBase}/api/projects/${projectId}/auto-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          files: [one], 
+          message: 'Auto-merged: preserve existing code, add new content for ' + f.path 
+        })
+      });
+      
+      const json = await res.json();
+      if (res.ok) {
+        setAppliedMap(m => ({ ...m, [f.path]: { applied: true, revertId: json.revertId } }));
+
+        // Use the merged content from the response
+        const mergedFile = json.mergedFiles?.find((r: any) => r.path === f.path);
+        const finalContent = mergedFile?.content || f.content;
+
+        // Update the explorer list and keep content in sync
+        setFiles(prev => {
+          const found = prev.find(p => p.path === f.path);
+          if (found) {
+            return prev.map(p => p.path === f.path ? { path: f.path, content: finalContent } : p);
+          }
+          return [...prev, { path: f.path, content: finalContent }];
+        });
+
+        // If the active file is the same path, update its content
+        setActiveFile(prev => prev && prev.path === f.path ? { path: f.path, content: finalContent } : prev);
+        
+        // Show success message with details
+        if (json.stats) {
+          const message = `Auto-merged successfully! ${json.stats.newFiles} new files, ${json.stats.mergedFiles} files updated.`;
+          console.log(message);
+        }
+      } else {
+        console.error('Auto-merge failed:', json.error);
+      }
+    } catch (error) {
+      console.error('Auto-merge error:', error);
+    }
   }
 
   async function revertFile(f: { path: string; content: string }) {
@@ -1692,8 +2038,77 @@ const askPrompt = [
   // use shared backendBase from lib/api
     try {
       const res = await fetch(`${backendBase}/api/ai/revert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revertId: info.revertId }) });
-      if (res.ok) setAppliedMap(m => ({ ...m, [f.path]: { applied: false } }));
+      if (res.ok) {
+        // Clear applied flags for all files that were part of this same apply batch
+        setAppliedMap(prev => {
+          const next: typeof prev = { ...prev };
+          Object.keys(prev).forEach(k => {
+            if (prev[k]?.revertId === info.revertId) next[k] = { applied: false } as any;
+          });
+          return next;
+        });
+        // Reload the project files so additions/deletions and content reverts are reflected
+        await refreshProject();
+      }
     } catch {}
+  }
+
+  // Merge conflict resolution functions
+  async function handleMergeConflictResolution(resolvedContent: Record<string, string>) {
+    if (!projectId || !pendingFiles.length) return;
+    
+    try {
+      const res = await fetch(`${backendBase}/api/projects/${projectId}/apply-merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          files: pendingFiles, 
+          resolvedConflicts: resolvedContent,
+          message: scenario || 'Applied with conflict resolution'
+        })
+      });
+      
+      const json = await res.json();
+      if (res.ok) {
+        const revertId = json.revertId as string | undefined;
+        const m: Record<string, { applied: boolean; revertId?: string }> = {};
+        pendingFiles.forEach(f => m[f.path] = { applied: true, revertId });
+        setAppliedMap(prev => ({ ...prev, ...m }));
+
+        // Update file list with resolved content
+        setFiles(prev => {
+          const map = new Map<string, FileItem>();
+          prev.forEach(pf => map.set(pf.path, { ...pf }));
+          
+          Object.entries(resolvedContent).forEach(([path, content]) => {
+            map.set(path, { path, content });
+          });
+          
+          return Array.from(map.values());
+        });
+
+        // Close merge dialog and clear state
+        setShowMergeDialog(false);
+        setPendingFiles([]);
+        setMergeResults([]);
+        setResolvedConflicts({});
+        
+        // Open first resolved file
+        const firstPath = Object.keys(resolvedContent)[0];
+        if (firstPath) {
+          setActiveFile({ path: firstPath, content: resolvedContent[firstPath] });
+        }
+      }
+    } catch (error) {
+      console.error('Merge conflict resolution error:', error);
+    }
+  }
+
+  function cancelMerge() {
+    setShowMergeDialog(false);
+    setPendingFiles([]);
+    setMergeResults([]);
+    setResolvedConflicts({});
   }
 
   return (
@@ -1702,6 +2117,22 @@ const askPrompt = [
         <title>IDE & AI Assistance</title>
       </Head>
       <Header />
+      
+      {/* Merge Conflict Dialog */}
+      {showMergeDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`max-w-7xl max-h-[90vh] w-full mx-4 rounded-lg ${lightMode ? 'bg-white' : 'bg-[var(--vscode-panel)]'} border ${lightMode ? 'border-slate-200' : 'border-[var(--vscode-border)]'} flex flex-col`}>
+            <MergeConflictDialog
+              mergeResults={mergeResults}
+              pendingFiles={pendingFiles}
+              onResolve={handleMergeConflictResolution}
+              onCancel={cancelMerge}
+              lightMode={lightMode}
+            />
+          </div>
+        </div>
+      )}
+      
       <main className={`app-root ide-page w-full ${lightMode ? 'theme-light bg-slate-50' : 'theme-dark'}`} style={{ background: lightMode ? undefined : 'var(--vscode-bg)' }}>
         <div className={`${lightMode ? 'bg-white border-b border-slate-200' : 'bg-[var(--vscode-panel)] border-[var(--vscode-border)]'} flex-shrink-0 px-6 py-3`}>
           <div className="max-w-[1100px] mx-auto flex items-center justify-between">
@@ -1717,9 +2148,9 @@ const askPrompt = [
         <div className="flex-1 relative min-h-0">
           <Split
             sizes={[25, 75]}
-            minSize={[200, 0]}
+            minSize={[100, 300]}
             expandToMin={false}
-            gutterSize={10}
+            gutterSize={12}
             gutterAlign="center"
             snapOffset={30}
             dragInterval={1}
@@ -1809,9 +2240,9 @@ const askPrompt = [
               {/* Code view + Assistant */}
               <Split
                 sizes={[60, 40]}
-                minSize={[200, 200]}
+                minSize={[300, 250]}
                 expandToMin={false}
-                gutterSize={10}
+                gutterSize={12}
                 gutterAlign="center"
                 snapOffset={30}
                 dragInterval={1}
@@ -2032,9 +2463,37 @@ const askPrompt = [
 
                       {mode === 'agent' && briefFinished && aiFiles.length > 0 && (
                         <div>
-                          <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'}`}>
-                            Files Returned <span className={`text-xs font-normal ${lightMode ? 'text-slate-500' : 'text-slate-400'}`}>({aiFiles.length})</span>
-                          </h3>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className={`text-sm font-semibold flex items-center gap-2 ${lightMode ? 'text-slate-700' : 'text-[var(--vscode-text)]'}`}>
+                              Files Returned <span className={`text-xs font-normal ${lightMode ? 'text-slate-500' : 'text-slate-400'}`}>({aiFiles.length})</span>
+                            </h3>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => autoApplyAll(aiFiles)} 
+                                disabled={aiFiles.every(f => !!appliedMap[f.path]?.applied)}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  aiFiles.every(f => !!appliedMap[f.path]?.applied) 
+                                    ? 'bg-green-200 text-green-700 cursor-not-allowed' 
+                                    : 'bg-green-600 text-white hover:bg-green-500'
+                                }`}
+                                title="Apply all files with smart merge conflict detection"
+                              >
+                                Apply All
+                              </button>
+                              <button 
+                                onClick={() => autoMergeAll(aiFiles)} 
+                                disabled={aiFiles.every(f => !!appliedMap[f.path]?.applied)}
+                                className={`px-2 py-1 text-xs rounded ${
+                                  aiFiles.every(f => !!appliedMap[f.path]?.applied) 
+                                    ? 'bg-blue-200 text-blue-700 cursor-not-allowed' 
+                                    : 'bg-blue-600 text-white hover:bg-blue-500'
+                                }`}
+                                title="Auto-merge all files: preserve existing code, add new content only"
+                              >
+                                Auto-Merge All
+                              </button>
+                            </div>
+                          </div>
                           <div className="space-y-2">
                             {aiFiles.map(f => (
                               <details key={f.path} className={`rounded border p-2 ${lightMode ? 'bg-white border-slate-200' : 'bg-slate-800/60 border-slate-700/40'}`}>
@@ -2042,6 +2501,7 @@ const askPrompt = [
                                   <span className={`font-mono text-xs truncate flex-1 ${lightMode ? 'text-slate-700' : 'text-slate-200'}`}>{f.path}</span>
                                   <span className="flex gap-2 flex-shrink-0">
                                     <button onClick={e => { e.preventDefault(); applyFileNow(f); }} disabled={!!appliedMap[f.path]?.applied} className={`px-2 py-1 text-xs rounded ${appliedMap[f.path]?.applied ? 'bg-green-200 text-green-700 cursor-not-allowed' : 'bg-green-600 text-[var(--vscode-text)] hover:bg-green-500'}`}>Apply</button>
+                                    <button onClick={e => { e.preventDefault(); autoMergeFile(f); }} disabled={!!appliedMap[f.path]?.applied} className={`px-2 py-1 text-xs rounded ${appliedMap[f.path]?.applied ? 'bg-blue-200 text-blue-700 cursor-not-allowed' : 'bg-blue-600 text-[var(--vscode-text)] hover:bg-blue-500'}`} title="Auto-merge: preserve existing code, add new content">Auto-Merge</button>
                                     <button onClick={e => { e.preventDefault(); revertFile(f); }} disabled={!appliedMap[f.path]?.applied} className={`px-2 py-1 text-xs rounded ${appliedMap[f.path]?.applied ? 'bg-red-600 text-[var(--vscode-text)] hover:bg-red-500' : 'bg-red-200 text-red-500 cursor-not-allowed'}`}>Revert</button>
                                   </span>
                                 </summary>
@@ -2448,11 +2908,30 @@ const askPrompt = [
           /* react-split (Split.js) support */
           .split { height: 100% !important; width: 100% !important; display: flex; }
           .split > div { height: 100%; min-height: 0; min-width: 0; position: relative; }
-          /* Removed global pointer-event guards to avoid side effects */
-          .gutter { background: transparent !important; z-index: 10; position: relative; pointer-events: auto; }
-          .gutter:hover { background: #94a3b8; }
-          .gutter.gutter-horizontal { width: 10px; cursor: col-resize; }
-          .gutter.gutter-vertical { height: 10px; cursor: row-resize; }
+          /* Improved gutter styling for better visibility and accessibility */
+          .gutter { 
+            background: rgba(148, 163, 184, 0.1) !important; 
+            z-index: 10; 
+            position: relative; 
+            pointer-events: auto;
+            transition: background-color 0.2s ease;
+          }
+          .gutter:hover { 
+            background: rgba(148, 163, 184, 0.4) !important; 
+          }
+          .gutter:active {
+            background: rgba(148, 163, 184, 0.6) !important;
+          }
+          .gutter.gutter-horizontal { 
+            width: 12px; 
+            cursor: col-resize; 
+            min-width: 12px !important;
+          }
+          .gutter.gutter-vertical { 
+            height: 12px; 
+            cursor: row-resize; 
+            min-height: 12px !important;
+          }
           
           /* legacy react-split-pane support (safe to keep) */
           .Resizer { background: transparent !important; z-index: 1400; position: relative; pointer-events: auto;}

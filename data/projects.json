@@ -54,257 +54,99 @@
       ]
     },
     {
-      "id": "proj-1756645040104",
-      "name": "TestingTarun",
+      "id": "proj-1757415401394",
+      "name": "PythonSeleniumAutomation",
       "testSuite": "Regression",
-      "language": "JavaScript",
-      "frameworkType": "UI",
-      "tools": [
-        "Playwright"
-      ],
-      "createdAt": "2025-08-31T12:57:18.352Z",
-      "frameworkIds": [],
-      "description": "Testing creation of Projects 1",
-      "files": [
-        {
-          "path": "package.json",
-          "content": "{\n  \"name\": \"proj-1756645040104\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"scripts\": {\n    \"test\": \"playwright test\",\n    \"test:headed\": \"playwright test --headed\",\n    \"lint\": \"eslint . --ext .ts\",\n    \"postinstall\": \"playwright install --with-deps\"\n  },\n  \"devDependencies\": {\n    \"@playwright/test\": \"^1.43.0\",\n    \"typescript\": \"^5.1.6\"\n  }\n}\n"
-        },
-        {
-          "path": "tsconfig.json",
-          "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"CommonJS\",\n    \"lib\": [\"ES2020\", \"DOM\"],\n    \"strict\": true,\n    \"moduleResolution\": \"node\",\n    \"esModuleInterop\": true,\n    \"skipLibCheck\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"src\", \"tests\", \"playwright.config.ts\"]\n}\n"
-        },
-        {
-          "path": "playwright.config.ts",
-          "content": "import { defineConfig, devices } from '@playwright/test';\n\nexport default defineConfig({\n  testDir: 'tests',\n  timeout: 30 * 1000,\n  expect: {\n    timeout: 5000\n  },\n  fullyParallel: true,\n  forbidOnly: !!process.env.CI,\n  retries: process.env.CI ? 2 : 0,\n  workers: process.env.CI ? 1 : undefined,\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: {\n    baseURL: 'https://www.saucedemo.com',\n    headless: true,\n    viewport: { width: 1280, height: 720 },\n    actionTimeout: 5000,\n    trace: 'on-first-retry'\n  },\n  projects: [\n    {\n      name: 'chromium',\n      use: { ...devices['Desktop Chrome'] }\n    }\n  ]\n});\n"
-        },
-        {
-          "path": "src/pages/LoginPage.ts",
-          "content": "import { Page, Locator } from '@playwright/test';\n\n// Single Responsibility: encapsulates interactions with the login page only\nexport class LoginPage {\n  private readonly page: Page;\n  private readonly usernameField: Locator;\n  private readonly passwordField: Locator;\n  private readonly loginButton: Locator;\n  private readonly errorContainer: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.usernameField = page.locator('#user-name');\n    this.passwordField = page.locator('#password');\n    this.loginButton = page.locator('#login-button');\n    this.errorContainer = page.locator('[data-test=\"error\"]');\n  }\n\n  // Navigate to the login page (baseURL is set in playwright.config.ts)\n  async goto(): Promise<void> {\n    await this.page.goto('/');\n  }\n\n  // Perform login with given credentials\n  async login(username: string, password: string): Promise<void> {\n    await this.usernameField.fill(username);\n    await this.passwordField.fill(password);\n    await this.loginButton.click();\n  }\n\n  // Get the visible error text (if any)\n  async getErrorText(): Promise<string> {\n    if (await this.errorContainer.isVisible()) {\n      return (await this.errorContainer.textContent())?.trim() ?? '';\n    }\n    return '';\n  }\n\n  // Expose error locator for assertions if needed\n  get error() {\n    return this.errorContainer;\n  }\n}\n"
-        },
-        {
-          "path": "src/pages/InventoryPage.ts",
-          "content": "import { Page, Locator, expect } from '@playwright/test';\n\n/**\n * InventoryPage represents the page users land on after successful authentication.\n * Encapsulates assertions and interactions with the inventory list.\n */\nexport default class InventoryPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly title: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('.inventory_list');\n    this.title = page.locator('.title');\n  }\n\n  async isLoaded(): Promise<boolean> {\n    // Ensure that the inventory list is visible\n    return this.inventoryContainer.isVisible();\n  }\n\n  async expectIsLoaded(): Promise<void> {\n    await expect(this.inventoryContainer).toBeVisible();\n    await expect(this.title).toHaveText('Products');\n  }\n\n  async getUrl(): Promise<string> {\n    return this.page.url();\n  }\n}\n"
-        },
-        {
-          "path": "tests/login.spec.ts",
-          "content": "import { test, expect } from '@playwright/test';\nimport { LoginPage } from '../src/pages/LoginPage';\nimport { ProductsPage } from '../src/pages/ProductsPage';\n\ntest.describe('SauceDemo negative login tests', () => {\n  test('shows error for invalid credentials', async ({ page }) => {\n    const login = new LoginPage(page);\n    const products = new ProductsPage(page);\n\n    await login.goto();\n\n    // Attempt with invalid username and password\n    await login.login('invalid_user', 'wrong_password');\n\n    // Expect to stay on login page and show proper error message\n    const errorText = await login.getErrorText();\n    expect(errorText).toContain('Username and password do not match any user');\n\n    // Ensure we did not navigate to products page\n    expect(await products.isOpen()).toBeFalsy();\n  });\n\n  test('locked out user cannot login and sees locked out message', async ({ page }) => {\n    const login = new LoginPage(page);\n    const products = new ProductsPage(page);\n\n    await login.goto();\n\n    // locked_out_user is a known account on saucedemo\n    await login.login('locked_out_user', 'secret_sauce');\n\n    const errorText = await login.getErrorText();\n    expect(errorText).toContain('Sorry, this user has been locked out.');\n\n    // Verify products page is not accessible\n    expect(await products.isOpen()).toBeFalsy();\n  });\n});\n"
-        },
-        {
-          "path": "README.md",
-          "content": "# proj-1756645040104\n\nPlaywright TypeScript project containing two negative tests for https://www.saucedemo.com.\n\nHow to run:\n\n1. npm install\n2. npm test\n\nNotes:\n- The project uses the Page Object Model under `src/pages`.\n- Tests are located under `tests/`.\n- The postinstall script will attempt to install Playwright browsers automatically (`playwright install --with-deps`).\n\nTests included:\n- invalid credentials\n- locked out user\n"
-        },
-        {
-          "path": ".gitignore",
-          "content": "node_modules/\n.playwright/\ntest-results/\nreport/\ndist/\n.env\n"
-        },
-        {
-          "path": "src/pages/ProductsPage.ts",
-          "content": "import { Page, Locator } from '@playwright/test';\n\n// Represents the products (inventory) page after successful login\nexport class ProductsPage {\n  private readonly page: Page;\n  private readonly inventoryContainer: Locator;\n  private readonly pageTitle: Locator;\n\n  constructor(page: Page) {\n    this.page = page;\n    this.inventoryContainer = page.locator('#inventory_container');\n    this.pageTitle = page.locator('.title');\n  }\n\n  async isOpen(): Promise<boolean> {\n    return this.inventoryContainer.isVisible();\n  }\n\n  async getTitle(): Promise<string> {\n    return (await this.pageTitle.textContent())?.trim() ?? '';\n  }\n}\n"
-        }
-      ],
-      "updatedAt": "2025-09-02T19:59:05.831Z"
-    },
-    {
-      "id": "proj-1756843281583",
-      "name": "CSharpSeleniumAutomation",
-      "testSuite": "Regression",
-      "language": "C#",
-      "frameworkType": "UI",
-      "tools": [
-        "Selenium"
-      ],
-      "createdAt": "2025-09-02T20:01:19.088Z",
-      "frameworkIds": [],
-      "files": [
-        {
-          "path": "src/Pages/LoginPage.cs",
-          "content": "using OpenQA.Selenium;\nusing System;\n\nnamespace Proj1756843281583.Pages\n{\n    public class LoginPage : BasePage\n    {\n        private readonly By _username = By.Id(\"user-name\");\n        private readonly By _password = By.Id(\"password\");\n        private readonly By _loginButton = By.Id(\"login-button\");\n        private readonly By _errorContainer = By.CssSelector(\"div.error-message-container h3\");\n\n        private readonly string Url = \"https://www.saucedemo.com/\";\n\n        public LoginPage(IWebDriver driver) : base(driver)\n        {\n        }\n\n        public void Navigate()\n        {\n            Driver.Navigate().GoToUrl(Url);\n        }\n\n        public void EnterUsername(string username)\n        {\n            EnterText(_username, username);\n        }\n\n        public void EnterPassword(string password)\n        {\n            EnterText(_password, password);\n        }\n\n        public void ClickLogin()\n        {\n            Click(_loginButton);\n        }\n\n        public void LoginAs(string username, string password)\n        {\n            EnterUsername(username);\n            EnterPassword(password);\n            ClickLogin();\n        }\n\n        public string GetErrorMessage()\n        {\n            return GetText(_errorContainer);\n        }\n\n        public bool IsAtLoginPage()\n        {\n            try\n            {\n                return Driver.Title.Contains(\"Swag Labs\") || Driver.Url.Contains(\"saucedemo\");\n            }\n            catch\n            {\n                return false;\n            }\n        }\n    }\n}\n"
-        },
-        {
-          "path": "src/Pages/InventoryPage.cs",
-          "content": "using OpenQA.Selenium;\nusing System;\n\nnamespace Proj1756843281583.Pages\n{\n    public class InventoryPage : BasePage\n    {\n        private readonly By _inventoryContainer = By.Id(\"inventory_container\");\n        private readonly By _firstAddToCartButton = By.CssSelector(\"button.btn_inventory\");\n        private readonly By _cartBadge = By.CssSelector(\"a.shopping_cart_link .shopping_cart_badge\");\n\n        public InventoryPage(IWebDriver driver) : base(driver)\n        {\n        }\n\n        public bool IsLoaded()\n        {\n            try\n            {\n                return Driver.FindElement(_inventoryContainer).Displayed;\n            }\n            catch (NoSuchElementException)\n            {\n                return false;\n            }\n        }\n\n        public void AddFirstProductToCart()\n        {\n            Click(_firstAddToCartButton);\n        }\n\n        public int GetCartBadgeCount()\n        {\n            try\n            {\n                var text = GetText(_cartBadge);\n                return int.TryParse(text, out var v) ? v : 0;\n            }\n            catch\n            {\n                return 0;\n            }\n        }\n    }\n}\n"
-        },
-        {
-          "path": "tests/Helpers/BaseTest.cs",
-          "content": "using NUnit.Framework;\nusing OpenQA.Selenium;\nusing OpenQA.Selenium.Chrome;\nusing System;\n\nnamespace Proj1756843281583.Tests.Helpers\n{\n    public abstract class BaseTest\n    {\n        protected IWebDriver Driver = null!;\n\n        [SetUp]\n        public void Setup()\n        {\n            var options = new ChromeOptions();\n            // Run headless by default to make CI/CD execution smoother. Remove the following line\n            // if you want to see the browser during test runs.\n            options.AddArgument(\"--headless=new\");\n            options.AddArgument(\"--no-sandbox\");\n            options.AddArgument(\"--disable-gpu\");\n            options.AddArgument(\"--window-size=1920,1080\");\n\n            Driver = new ChromeDriver(options);\n            Driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(2);\n        }\n\n        [TearDown]\n        public void Teardown()\n        {\n            try\n            {\n                Driver.Quit();\n                Driver.Dispose();\n            }\n            catch\n            {\n                // ignore\n            }\n        }\n    }\n}\n"
-        },
-        {
-          "path": "tests/LoginTests.cs",
-          "content": "using NUnit.Framework;\nusing Proj1756843281583.Pages;\nusing Proj1756843281583.Tests.Helpers;\n\nnamespace Proj1756843281583.Tests\n{\n    [TestFixture]\n    public class LoginTests : BaseTest\n    {\n        private const string BaseUrl = \"https://www.saucedemo.com/\";\n        private const string ValidUsername = \"standard_user\";\n        private const string ValidPassword = \"secret_sauce\";\n\n        [Test]\n        public void Login_WithValidCredentials_ShouldNavigateToInventory()\n        {\n            var login = new LoginPage(Driver);\n            login.Navigate();\n            Assert.IsTrue(login.IsAtLoginPage(), \"Not at login page after navigate\");\n\n            login.LoginAs(ValidUsername, ValidPassword);\n\n            var inventory = new InventoryPage(Driver);\n            Assert.IsTrue(inventory.IsLoaded(), \"Inventory page was not loaded after login with valid credentials\");\n        }\n\n        [Test]\n        public void AddProductToCart_WithValidCredentials_ShouldIncreaseCartBadge()\n        {\n            var login = new LoginPage(Driver);\n            login.Navigate();\n            login.LoginAs(ValidUsername, ValidPassword);\n\n            var inventory = new InventoryPage(Driver);\n            Assert.IsTrue(inventory.IsLoaded(), \"Inventory page not loaded\");\n\n            // Ensure cart is initially empty\n            var initialCount = inventory.GetCartBadgeCount();\n\n            inventory.AddFirstProductToCart();\n\n            var afterCount = inventory.GetCartBadgeCount();\n\n            Assert.Greater(afterCount, initialCount, \"Cart badge did not increase after adding a product\");\n        }\n\n        [Test]\n        public void Login_WithInvalidPassword_ShouldShowError()\n        {\n            var login = new LoginPage(Driver);\n            login.Navigate();\n\n            login.EnterUsername(ValidUsername);\n            login.EnterPassword(\"wrong_password\");\n            login.ClickLogin();\n\n            var error = login.GetErrorMessage();\n            Assert.IsNotEmpty(error, \"Expected an error message for invalid credentials\");\n            StringAssert.Contains(\"Username and password do not match any user in this service\", error);\n        }\n\n        [Test]\n        public void Login_WithEmptyPassword_ShouldShowError()\n        {\n            var login = new LoginPage(Driver);\n            login.Navigate();\n\n            login.EnterUsername(ValidUsername);\n            login.EnterPassword(string.Empty);\n            login.ClickLogin();\n\n            var error = login.GetErrorMessage();\n            Assert.IsNotEmpty(error, \"Expected an error message when password is empty\");\n            StringAssert.Contains(\"Password is required\", error);\n        }\n    }\n}\n"
-        },
-        {
-          "path": "src/Pages/BasePage.cs",
-          "content": "using OpenQA.Selenium;\nusing OpenQA.Selenium.Support.UI;\nusing SeleniumExtras.WaitHelpers;\nusing System;\n\nnamespace Proj1756843281583.Pages\n{\n    public abstract class BasePage\n    {\n        protected readonly IWebDriver Driver;\n        protected readonly WebDriverWait Wait;\n\n        protected BasePage(IWebDriver driver, TimeSpan? timeout = null)\n        {\n            Driver = driver ?? throw new ArgumentNullException(nameof(driver));\n            Wait = new WebDriverWait(Driver, timeout ?? TimeSpan.FromSeconds(10));\n        }\n\n        protected IWebElement WaitForElementVisible(By by)\n        {\n            return Wait.Until(ExpectedConditions.ElementIsVisible(by));\n        }\n\n        protected void Click(By by)\n        {\n            Wait.Until(ExpectedConditions.ElementToBeClickable(by)).Click();\n        }\n\n        protected void EnterText(By by, string text)\n        {\n            var el = WaitForElementVisible(by);\n            el.Clear();\n            el.SendKeys(text);\n        }\n\n        public string GetText(By by)\n        {\n            try\n            {\n                return WaitForElementVisible(by).Text;\n            }\n            catch (WebDriverTimeoutException)\n            {\n                return string.Empty;\n            }\n        }\n    }\n}\n"
-        },
-        {
-          "path": "README.md",
-          "content": "# proj-1756843281583\n\nSelenium UI automation project in C# using NUnit and Page Object Model.\n\nPrerequisites:\n- .NET SDK 7.0 or later (dotnet)\n- Google Chrome browser installed (matching a compatible chromedriver will be provided via NuGet package)\n\nHow to run:\n1. Restore dependencies:\n   dotnet restore\n\n2. Run tests:\n   dotnet test\n\nNotes:\n- The project uses Selenium.WebDriver.ChromeDriver NuGet package to provide the chromedriver executable. If the included chromedriver version is incompatible with your local Chrome, update the Selenium.WebDriver.ChromeDriver package version in the .csproj or install a matching local chromedriver and adjust PATH.\n- Tests are located under the \"tests/\" folder and follow the Page Object Model with page classes in \"src/Pages\".\n"
-        },
-        {
-          "path": "Proj1756843281583.Tests.csproj",
-          "content": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net7.0</TargetFramework>\n    <IsPackable>false</IsPackable>\n    <Nullable>enable</Nullable>\n    <ImplicitUsings>enable</ImplicitUsings>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.14.0\" />\n    <PackageReference Include=\"Selenium.Support\" Version=\"4.14.0\" />\n    <PackageReference Include=\"Selenium.WebDriver.ChromeDriver\" Version=\"119.0.6045.140\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.5.1\" />\n    <PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17.9.0\" />\n    <PackageReference Include=\"DotNetSeleniumExtras.WaitHelpers\" Version=\"3.11.0\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <None Update=\"README.md\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>\n  </ItemGroup>\n</Project> "
-        },
-        {
-          "path": "proj-1756843281583.csproj",
-          "content": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net7.0</TargetFramework>\n    <IsPackable>false</IsPackable>\n    <LangVersion>latest</LangVersion>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <!-- Test framework and adapter -->\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.5.0\" />\n    <PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17.9.0\" />\n\n    <!-- Selenium WebDriver -->\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.11.0\" />\n    <!-- ChromeDriver package provides the chromedriver executable appropriate for platform -->\n    <PackageReference Include=\"Selenium.WebDriver.ChromeDriver\" Version=\"118.0.5993.9000\" />\n  </ItemGroup>\n</Project>\n"
-        },
-        {
-          "path": "src/Driver/WebDriverFactory.cs",
-          "content": "using OpenQA.Selenium;\nusing OpenQA.Selenium.Chrome;\nusing System;\n\nnamespace Proj1756843281583.Driver\n{\n    /// <summary>\n    /// Responsible for creating configured IWebDriver instances.\n    /// Single Responsibility: only creates and configures web drivers.\n    /// </summary>\n    public static class WebDriverFactory\n    {\n        /// <summary>\n        /// Create a ChromeDriver with safe defaults. Headless by default.\n        /// </summary>\n        /// <param name=\"headless\">Run Chrome headless when true.</param>\n        /// <returns>IWebDriver instance</returns>\n        public static IWebDriver CreateChrome(bool headless = true)\n        {\n            var options = new ChromeOptions();\n            // Common stable options\n            options.AddArgument(\"--no-sandbox\");\n            options.AddArgument(\"--disable-dev-shm-usage\");\n            options.AddArgument(\"--disable-gpu\");\n\n            if (headless)\n            {\n                // Use \"new\" headless mode where available\n                options.AddArgument(\"--headless=new\");\n            }\n\n            // Instantiate ChromeDriver (Selenium.WebDriver.ChromeDriver NuGet provides the binary)\n            return new ChromeDriver(options);\n        }\n    }\n}\n"
-        },
-        {
-          "path": "src/Pages/HomePage.cs",
-          "content": "using OpenQA.Selenium;\nusing System;\n\nnamespace Proj1756843281583.Pages\n{\n    /// <summary>\n    /// Page Object representing the example.com homepage.\n    /// Encapsulates interactions and queries for the page.\n    /// </summary>\n    public class HomePage\n    {\n        private readonly IWebDriver _driver;\n        private readonly Uri _url = new Uri(\"http://www.example.com\");\n\n        public HomePage(IWebDriver driver)\n        {\n            _driver = driver ?? throw new ArgumentNullException(nameof(driver));\n        }\n\n        public void Navigate()\n        {\n            _driver.Navigate().GoToUrl(_url);\n        }\n\n        /// <summary>\n        /// Returns the main H1 heading text on the page.\n        /// </summary>\n        /// <returns>Heading text</returns>\n        public string GetHeadingText()\n        {\n            var heading = _driver.FindElement(By.CssSelector(\"h1\"));\n            return heading.Text;\n        }\n\n        /// <summary>\n        /// Returns the page title.\n        /// </summary>\n        public string Title => _driver.Title;\n    }\n}\n"
-        },
-        {
-          "path": "src/Tests/BaseTest.cs",
-          "content": "using NUnit.Framework;\nusing OpenQA.Selenium;\nusing Proj1756843281583.Driver;\nusing System;\n\nnamespace Proj1756843281583.Tests\n{\n    /// <summary>\n    /// Base test class handling WebDriver lifecycle.\n    /// Other tests should inherit from this to get setup/teardown behavior.\n    /// </summary>\n    public abstract class BaseTest\n    {\n        protected IWebDriver Driver { get; private set; }\n\n        [SetUp]\n        public virtual void Setup()\n        {\n            // Keep headless=false by default to make debugging easier locally.\n            Driver = WebDriverFactory.CreateChrome(headless: false);\n            Driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);\n            Driver.Manage().Window.Maximize();\n        }\n\n        [TearDown]\n        public virtual void TearDown()\n        {\n            try\n            {\n                Driver?.Quit();\n                Driver?.Dispose();\n            }\n            catch\n            {\n                // Best-effort cleanup; swallow exceptions to not mask test results\n            }\n        }\n    }\n}\n"
-        },
-        {
-          "path": "tests/ExampleTest.cs",
-          "content": "using NUnit.Framework;\nusing Proj1756843281583.Pages;\n\nnamespace Proj1756843281583.Tests\n{\n    [TestFixture]\n    public class ExampleTest : BaseTest\n    {\n        [Test]\n        public void ExampleDotCom_ShouldDisplayExpectedHeadingAndTitle()\n        {\n            var home = new HomePage(Driver);\n            home.Navigate();\n\n            // Assert the H1 heading text is the expected text on example.com\n            var heading = home.GetHeadingText();\n            Assert.AreEqual(\"Example Domain\", heading, \"The page heading should be 'Example Domain'.\");\n\n            // Assert title contains known text\n            Assert.IsTrue(home.Title.Contains(\"Example Domain\"), \"The page title should contain 'Example Domain'.\");\n        }\n    }\n}\n"
-        },
-        {
-          "path": ".gitignore",
-          "content": "bin/\nobj/\n.vs/\n*.user\n*.suo\nTestResults/\n*.nupkg\n.nuget/\n"
-        }
-      ],
-      "updatedAt": "2025-09-03T05:08:57.985Z"
-    },
-    {
-      "id": "proj-1756843323975",
-      "name": "JavaSelenium",
-      "testSuite": "Sanity",
-      "language": "Java",
-      "frameworkType": "UI",
-      "tools": [
-        "Selenium"
-      ],
-      "createdAt": "2025-09-02T20:02:03.929Z",
-      "frameworkIds": [],
-      "files": [
-        {
-          "path": "README.md",
-          "content": "// Project: JavaSelenium\n# JavaSelenium\n\nThis project contains Selenium automated tests for SauceDemo.com.\n\n## Prerequisites\n- Java\n- Maven\n\n## Running Tests\n1. Clone the repository.\n2. Navigate to the project directory.\n3. Run `mvn clean test` to execute the test cases.\n"
-        },
-        {
-          "path": "pom.xml",
-          "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n    <modelVersion>4.0.0</modelVersion>\n    <groupId>com.example</groupId>\n    <artifactId>JavaSelenium</artifactId>\n    <version>1.0-SNAPSHOT</version>\n\n    <dependencies>\n        <dependency>\n            <groupId>org.seleniumhq.selenium</groupId>\n            <artifactId>selenium-java</artifactId>\n            <version>4.0.0</version>\n        </dependency>\n        <dependency>\n            <groupId>org.testcontainers</groupId>\n            <artifactId>testcontainers</artifactId>\n            <version>1.15.3</version>\n        </dependency>\n        <dependency>\n            <groupId>junit</groupId>\n            <artifactId>junit</artifactId>\n            <version>4.12</version>\n            <scope>test</scope>\n        </dependency>\n    </dependencies>\n\n    <build>\n        <plugins>\n            <plugin>\n                <groupId>org.apache.maven.plugins</groupId>\n                <artifactId>maven-surefire-plugin</artifactId>\n                <version>2.22.2</version>\n            </plugin>\n        </plugins>\n    </build>\n</project>\n"
-        },
-        {
-          "path": "src/pages/LoginPage.java",
-          "content": "// Project: JavaSelenium\npackage JavaSelenium.pages;\n\nimport org.openqa.selenium.By;\nimport org.openqa.selenium.WebDriver;\n\npublic class LoginPage {\n    WebDriver driver;\n\n    By usernameField = By.id(\"user-name\");\n    By passwordField = By.id(\"password\");\n    By loginButton = By.id(\"login-button\");\n\n    public LoginPage(WebDriver driver) {\n        this.driver = driver;\n    }\n\n    public void login(String username, String password) {\n        driver.findElement(usernameField).sendKeys(username);\n        driver.findElement(passwordField).sendKeys(password);\n        driver.findElement(loginButton).click();\n    }\n}\n"
-        },
-        {
-          "path": "src/tests/LoginTest.java",
-          "content": "// Project: JavaSelenium\npackage JavaSelenium.tests;\n\nimport JavaSelenium.pages.LoginPage;\nimport JavaSelenium.pages.HomePage;\nimport org.junit.After;\nimport org.junit.Before;\nimport org.junit.Test;\nimport org.openqa.selenium.WebDriver;\nimport org.openqa.selenium.chrome.ChromeDriver;\n\nimport static org.junit.Assert.*;\n\npublic class LoginTest {\n    WebDriver driver;\n    LoginPage loginPage;\n    HomePage homePage;\n\n    @Before\n    public void setUp() {\n        System.setProperty(\"webdriver.chrome.driver\", \"path/to/chromedriver\");\n        driver = new ChromeDriver();\n        driver.get(\"https://www.saucedemo.com\");\n        loginPage = new LoginPage(driver);\n        homePage = new HomePage(driver);\n    }\n\n    @Test\n    public void testLoginWithValidCredentials() {\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @Test\n    public void testLoginWithInvalidUser() {\n        loginPage.login(\"invalid_user\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Username and password do not match\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyUsername() {\n        loginPage.login(\"\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Username is required\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyPassword() {\n        loginPage.login(\"standard_user\", \"\");\n        assertTrue(driver.getPageSource().contains(\"Password is required\"));\n    }\n\n    @Test\n    public void testLoginWithEmptyCredentials() {\n        loginPage.login(\"\", \"\");\n        assertTrue(driver.getPageSource().contains(\"Username is required\"));\n    }\n\n    @Test\n    public void testLoginButtonDisabledInitially() {\n        // Test case for initial state of login button if username and password are empty\n    }\n\n    @Test\n    public void testLoginWithLockedOutUser() {\n        loginPage.login(\"locked_out_user\", \"secret_sauce\");\n        assertTrue(driver.getPageSource().contains(\"Epic sadface: Sorry, this user has been locked out.\"));\n    }\n\n    @Test\n    public void testLoginWithProblemUser() {\n        loginPage.login(\"problem_user\", \"secret_sauce\");\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @Test\n    public void testLogoutFunctionality() {\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n        // Assuming there's a method to log out, you can assert the behavior here as well\n    }\n\n    @After\n    public void tearDown() {\n        driver.quit();\n    }\n}\n"
-        },
-        {
-          "path": "src/tests/HomeTest.java",
-          "content": "// Project: JavaSelenium\npackage JavaSelenium.tests;\n\nimport JavaSelenium.pages.LoginPage;\nimport JavaSelenium.pages.HomePage;\nimport org.junit.After;\nimport org.junit.Before;\nimport org.junit.Test;\nimport org.openqa.selenium.WebDriver;\nimport org.openqa.selenium.chrome.ChromeDriver;\n\nimport static org.junit.Assert.*;\n\npublic class HomeTest {\n    WebDriver driver;\n    LoginPage loginPage;\n    HomePage homePage;\n\n    @Before\n    public void setUp() {\n        System.setProperty(\"webdriver.chrome.driver\", \"path/to/chromedriver\");\n        driver = new ChromeDriver();\n        driver.get(\"https://www.saucedemo.com\");\n        loginPage = new LoginPage(driver);\n        homePage = new HomePage(driver);\n        loginPage.login(\"standard_user\", \"secret_sauce\");\n    }\n\n    @Test\n    public void testProductPageAccess() {\n        // Test to access product page after login\n        assertEquals(\"PRODUCTS\", homePage.getProductsHeader());\n    }\n\n    @After\n    public void tearDown() {\n        driver.quit();\n    }\n}\n"
-        },
-        {
-          "path": "src/pages/HomePage.java",
-          "content": "// Project: JavaSelenium\npackage JavaSelenium.pages;\n\nimport org.openqa.selenium.By;\nimport org.openqa.selenium.WebDriver;\n\npublic class HomePage {\n    WebDriver driver;\n\n    By productsHeader = By.className(\"title\");\n\n    public HomePage(WebDriver driver) {\n        this.driver = driver;\n    }\n\n    public String getProductsHeader() {\n        return driver.findElement(productsHeader).getText();\n    }\n}\n"
-        }
-      ],
-      "updatedAt": "2025-09-04T06:29:33.392Z"
-    },
-    {
-      "id": "proj-1757063951360",
-      "name": "CharpSelenium",
-      "testSuite": "Regression",
-      "language": "C#",
-      "frameworkType": "UI",
-      "tools": [
-        "Selenium"
-      ],
-      "createdAt": "2025-09-05T09:19:09.550Z",
-      "frameworkIds": [],
-      "files": [
-        {
-          "path": "CharpSelenium.csproj",
-          "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net6.0</TargetFramework>\n    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Selenium.WebDriver\" Version=\"4.5.0\" />\n    <PackageReference Include=\"Selenium.WebDriver.ChromeDriver\" Version=\"113.0.5672.63\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"3.17.0\" />\n  </ItemGroup>\n</Project>"
-        },
-        {
-          "path": "src/pages/LoginPage.cs",
-          "content": "// Project: CharpSelenium\nusing OpenQA.Selenium;\nusing OpenQA.Selenium.Support.UI;\n\nnamespace CharpSelenium\n{\n    public class LoginPage\n    {\n        private readonly IWebDriver _driver;\n        private readonly WebDriverWait _wait;\n\n        public LoginPage(IWebDriver driver)\n        {\n            _driver = driver;\n            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));\n        }\n\n        public void EnterUsername(string username)\n        {\n            var usernameField = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"user-name\")));\n            usernameField.Clear();\n            usernameField.SendKeys(username);\n        }\n\n        public void EnterPassword(string password)\n        {\n            var passwordField = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"password\")));\n            passwordField.Clear();\n            passwordField.SendKeys(password);\n        }\n\n        public void ClickLogin()\n        {\n            var loginButton = _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementToBeClickable(By.Id(\"login-button\")));\n            loginButton.Click();\n        }\n\n        public string GetErrorMessage()\n        {\n            return _wait.Until(SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(By.CssSelector(\"h3[data-test='error']\"))).Text;\n        }\n    }\n}"
-        },
-        {
-          "path": "src/tests/LoginTests.cs",
-          "content": "// Project: CharpSelenium\nusing NUnit.Framework;\nusing OpenQA.Selenium;\nusing OpenQA.Selenium.Chrome;\n\nnamespace CharpSelenium\n{\n    public class LoginTests\n    {\n        private IWebDriver _driver;\n        private LoginPage _loginPage;\n\n        [SetUp]\n        public void Setup()\n        {\n            _driver = new ChromeDriver();\n            _driver.Navigate().GoToUrl(\"http://www.saucedemo.com\");\n            _loginPage = new LoginPage(_driver);\n        }\n\n        [TearDown]\n        public void Teardown()\n        {\n            _driver.Quit();\n        }\n\n        [Test]\n        public void PositiveLoginTest()\n        {\n            _loginPage.EnterUsername(\"standard_user\");\n            _loginPage.EnterPassword(\"secret_sauce\");\n            _loginPage.ClickLogin();\n\n            Assert.IsTrue(_driver.Url.Contains(\"inventory.html\"));\n        }\n\n        [Test]\n        public void NegativeLoginUsernameTest()\n        {\n            _loginPage.EnterUsername(\"invalid_user\");\n            _loginPage.EnterPassword(\"secret_sauce\");\n            _loginPage.ClickLogin();\n\n            Assert.AreEqual(\"Username and password do not match any user in this service\", _loginPage.GetErrorMessage());\n        }\n\n        [Test]\n        public void NegativeLoginPasswordTest()\n        {\n            _loginPage.EnterUsername(\"standard_user\");\n            _loginPage.EnterPassword(\"wrong_password\");\n            _loginPage.ClickLogin();\n\n            Assert.AreEqual(\"Username and password do not match any user in this service\", _loginPage.GetErrorMessage());\n        }\n    }\n}"
-        },
-        {
-          "path": "README.md",
-          "content": "# CharpSelenium\n\n## Overview\nCharpSelenium is a simple Selenium WebDriver project in C# for automating test cases on the Sauce Demo website. This project demonstrates positive and negative test scenarios for user login.\n\n## Getting Started\n\n### Prerequisites\n- .NET 6 SDK\n- Visual Studio or any compatible IDE\n\n### Installation\n1. Clone the repository:\n   ```bash\n   git clone <repository-url>\n   cd CharpSelenium\n   ```\n2. Restore the dependencies:\n   ```bash\n   dotnet restore\n   ```\n3. Run Tests:\n   ```bash\n   dotnet test\n   ```\n\n## Test Cases\n- **Positive Test Case:** Valid user login.\n- **Negative Test Cases:** Invalid username and invalid password.\n"
-        }
-      ],
-      "updatedAt": "2025-09-06T03:45:49.501Z"
-    },
-    {
-      "id": "proj-1757145528791",
-      "name": "Tarun Testing",
-      "testSuite": "Smoke Test",
       "language": "Python",
       "frameworkType": "UI Testing",
       "tools": [
         "Selenium"
       ],
-      "createdAt": "2025-09-06T07:58:48.731Z",
-      "frameworkIds": []
-    },
-    {
-      "id": "proj-1757145570143",
-      "name": "TarunTesting",
-      "testSuite": "Smoke Test",
-      "language": "Python",
-      "frameworkType": "UI Testing",
-      "tools": [
-        "Selenium"
-      ],
-      "createdAt": "2025-09-06T07:59:30.116Z",
-      "frameworkIds": []
-    },
-    {
-      "id": "proj-1757146035528",
-      "name": "CSharpUnitTests",
-      "testSuite": "Integration",
-      "language": "C# / .NET",
-      "frameworkType": "API Testing",
-      "tools": [
-        "RestSharp"
-      ],
-      "createdAt": "2025-09-06T08:07:15.092Z",
+      "createdAt": "2025-09-09T10:56:41.298Z",
       "frameworkIds": [],
-      "description": "CSharpUnitTests",
+      "description": "Python UI Tests",
       "files": [
         {
-          "path": "CSharpUnitTests/CSharpUnitTests.csproj",
-          "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project Sdk=\"Microsoft.NET.Sdk\">\n\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net6.0</TargetFramework>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <Nullable>enable</Nullable>\n  </PropertyGroup>\n\n  <ItemGroup>\n    <PackageReference Include=\"RestSharp\" Version=\"108.0.2\" />\n    <PackageReference Include=\"NUnit\" Version=\"3.13.3\" />\n    <PackageReference Include=\"NUnit3TestAdapter\" Version=\"4.2.0\" />\n    <PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17.2.0\" />\n  </ItemGroup>\n\n</Project>\n"
+          "path": "requirements.txt",
+          "content": "pytest-html==3.2.0\npytest==7.2.1\nselenium==4.13.0"
         },
         {
-          "path": "src/tests/ApiTests.cs",
-          "content": "// Project: CSharpUnitTests\nusing NUnit.Framework;\nusing RestSharp;\n\nnamespace CSharpUnitTests\n{\n    public class ApiTests\n    {\n        private const string BaseUrl = \"https://api.restful-api.dev/objects\";\n\n        [Test]\n        public void Test_GetObjects_ReturnsSuccess()\n        {\n            var client = new RestClient(BaseUrl);\n            var request = new RestRequest(Method.GET);\n\n            var response = client.Execute(request);\n\n            Assert.That(response.IsSuccessful, Is.True, \"Expected a successful response from the GET API\");\n            Assert.That(response.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.OK), \"Expected HTTP status code 200\");\n            Assert.That(response.Content, Is.Not.Empty, \"Expected non-empty response content\");\n        }\n    }\n}\n"
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    login: Test login scenarios\n    cart: Test cart functionalities\n    checkout: Test checkout process\naddopts = --tb=short --strict-markers\n\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\nclass LoginPage:\n    URL = \"https://www.saucedemo.com/\"\n    USERNAME_INPUT = (By.ID, \"user-name\")\n    PASSWORD_INPUT = (By.ID, \"password\")\n    LOGIN_BUTTON = (By.ID, \"login-button\")\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def load(self):\n        self.driver.get(self.URL)\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(*self.USERNAME_INPUT).send_keys(username)\n        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)\n        self.driver.find_element(*self.LOGIN_BUTTON).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, \"user-name\")\n        self.password_input = (By.ID, \"password\")\n        self.login_button = (By.ID, \"login-button\")\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).clear()\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).clear()\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def submit_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n\n\n    def enter_username(self, username: str):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password: str):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n\n\n    def __init__(self, driver):\n        self.driver = driver\n        self.username_input = (By.ID, 'user-name')\n        self.password_input = (By.ID, 'password')\n        self.login_button = (By.ID, 'login-button')\n        self.error_message = (By.CSS_SELECTOR, '.error-message-container')\n\n\n    def enter_username(self, username):\n        self.driver.find_element(*self.username_input).send_keys(username)\n\n\n    def enter_password(self, password):\n        self.driver.find_element(*self.password_input).send_keys(password)\n\n\n    def click_login(self):\n        self.driver.find_element(*self.login_button).click()\n\n\n    def get_error_message(self):\n        return WebDriverWait(self.driver, 10).until(\n            EC.visibility_of_element_located(self.error_message)\n        ).text\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.login\ndef test_valid_login(driver):\n    driver.get('https://www.saucedemo.com')\n    login_page = LoginPage(driver)\n    inventory_page = InventoryPage(driver)\n    login_page.enter_username('standard_user')\n    login_page.enter_password('secret_sauce')\n    login_page.click_login()\n    assert inventory_page.is_inventory_displayed()\n\n\ndef test_invalid_login(driver):\n    login_page = LoginPage(driver)\n    login_page.load()\n    login_page.login(\"invalid_user\", \"wrong_password\")\n    assert \"Epic sadface: Username and password do not match any user in this service\" in driver.page_source\n\n\ndef login(driver):\n    driver.get('https://www.saucedemo.com/')\n    return LoginPage(driver)\n\n\ndef inventory(driver, login):\n    login.enter_username('standard_user')\n    login.enter_password('secret_sauce')\n    login.click_login()\n    return InventoryPage(driver)\n\n"
         },
         {
           "path": "README.md",
-          "content": "# CSharpUnitTests\n\nThis project demonstrates a simple API test using RestSharp in C#/.NET.\n\n## Setup\n\n1. Ensure you have .NET 6.0 SDK installed.\n2. Restore dependencies and build the project:\n\n```shell\ncd CSharpUnitTests\n dotnet restore\n dotnet build\n```\n\n## Running Tests\n\nExecute the tests using the `dotnet test` command:\n\n```shell\ndotnet test\n```\n\nThis will run the API tests for the RESTful API.\n"
+          "content": "# Python Selenium Automation\n\n## Setup Instructions\n\n1. Install dependencies:\n    ```sh\n    pip install -r requirements.txt\n    ```\n\n2. Run tests:\n    ```sh\n    pytest\n    ```\n\n3. Generate HTML report (optional):\n    ```sh\n    pytest --html=report.html\n    ```\n\nEnsure you have the latest version of Chrome and the corresponding ChromeDriver install\n"
+        },
+        {
+          "path": "src/pages/inventory_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\nclass InventoryPage:\n    def __init__(self, driver):\n        self.driver = driver\n        self.inventory_list = (By.CLASS_NAME, 'inventory_list')\n\n    def is_inventory_displayed(self):\n        return self.driver.find_element(*self.inventory_list).is_displayed()\n\n\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n        self.inventory_items = (By.CLASS_NAME, 'inventory_item')\n        self.cart_button = (By.CLASS_NAME, 'shopping_cart_link')\n\n\n    def get_inventory_item_count(self):\n        return len(self.driver.find_elements(*self.inventory_items))\n\n\n    def go_to_cart(self):\n        self.driver.find_element(*self.cart_button).click()\n"
+        },
+        {
+          "path": "src/tests/test_cart.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.cart\ndef test_add_to_cart(driver):\n    # Implement test for adding items to cart\n    pass\n"
+        },
+        {
+          "path": "src/tests/test_checkout.py",
+          "content": "import pytest\nfrom selenium import webdriver\n\n@pytest.fixture(scope='function')\ndef driver():\n    driver = webdriver.Chrome()\n    driver.maximize_window()\n    yield driver\n    driver.quit()\n\n@pytest.mark.checkout\ndef test_checkout_process(driver):\n    # Implement test for checkout process\n    pass\n"
+        },
+        {
+          "path": "src/tests/test_inventory.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\nfrom src.pages.inventory_page import InventoryPage\n\n@pytest.fixture\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n@pytest.fixture\ndef inventory(driver):\n    login = LoginPage(driver)\n    driver.get('https://www.saucedemo.com/')\n    login.enter_username('standard_user')\n    login.enter_password('secret_sauce')\n    login.click_login()\n    return InventoryPage(driver)\n\n\ndef test_inventory_items_count(inventory):\n    # Assert that the inventory page has items\n    assert inventory.get_inventory_item_count() > 0\n\n\ndef test_go_to_cart(inventory):\n    # Click on cart button and assert navigation\n    inventory.go_to_cart()\n    assert 'cart.html' in inventory.driver.current_url\n"
+        },
+        {
+          "path": "src/tests/test_login_negative.py",
+          "content": "import pytest\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\nclass TestLoginNegative:\n    @pytest.fixture\n    def setup(self):\n        self.driver = webdriver.Chrome()\n        self.driver.get('https://www.saucedemo.com')\n        yield\n        self.driver.quit()\n\n    def test_invalid_username(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('invalid_user')\n        login_page.enter_password('secret_sauce')\n        login_page.click_login()\n        assert 'Epic sadface: Username and password do not match' in login_page.get_error_message()\n\n    def test_invalid_password(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('standard_user')\n        login_page.enter_password('wrong_password')\n        login_page.click_login()\n        assert 'Epic sadface: Username and password do not match' in login_page.get_error_message()\n\n    def test_empty_username(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('')\n        login_page.enter_password('secret_sauce')\n        login_page.click_login()\n        assert 'Epic sadface: Username is required' in login_page.get_error_message()\n\n    def test_empty_password(self, setup):\n        login_page = LoginPage(self.driver)\n        login_page.enter_username('standard_user')\n        login_page.enter_password('')\n        login_page.click_login()\n        assert 'Epic sadface: Password is required' in login_page.get_error_message()\n"
         }
       ],
-      "updatedAt": "2025-09-06T08:39:31.919Z"
+      "updatedAt": "2025-09-09T18:07:19.218Z"
     },
     {
-      "id": "proj-1757151715951",
-      "name": "temp",
+      "id": "proj-1757441677444",
+      "name": "PyTestBDD",
       "testSuite": "Integration",
-      "language": "C# / .NET",
+      "language": "Python",
       "frameworkType": "BDD",
       "tools": [
-        "SpecFlow"
+        "pytest-bdd"
       ],
-      "createdAt": "2025-09-06T09:41:55.808Z",
-      "frameworkIds": []
+      "createdAt": "2025-09-09T18:14:37.393Z",
+      "frameworkIds": [],
+      "files": [
+        {
+          "path": "requirements.txt",
+          "content": "pytest==7.1.2\npytest-bdd==5.0.0\nselenium==4.4.3\n"
+        },
+        {
+          "path": "pytest.ini",
+          "content": "[pytest]\nmarkers =\n    bdd: BDD tests\n"
+        },
+        {
+          "path": "src/pages/login_page.py",
+          "content": "from selenium.webdriver.common.by import By\nfrom selenium.webdriver.remote.webdriver import WebDriver\n\n\nclass LoginPage:\n    def __init__(self, driver: WebDriver):\n        self.driver = driver\n\n    def go_to_login_page(self):\n        self.driver.get('https://www.saucedemo.com/')\n\n    def login(self, username: str, password: str):\n        self.driver.find_element(By.ID, 'user-name').send_keys(username)\n        self.driver.find_element(By.ID, 'password').send_keys(password)\n        self.driver.find_element(By.ID, 'login-button').click()\n"
+        },
+        {
+          "path": "src/tests/test_login.py",
+          "content": "import pytest\nfrom pytest_bdd import scenarios, given, when, then\nfrom selenium import webdriver\nfrom src.pages.login_page import LoginPage\n\nscenarios('login.feature')\n\n@pytest.fixture\n\ndef driver():\n    driver = webdriver.Chrome()\n    yield driver\n    driver.quit()\n\n@given('the user is on the login page')\ndef user_on_login_page(driver):\n    login_page = LoginPage(driver)\n    login_page.go_to_login_page()\n\n@when('the user enters username \"<username>\" and password \"<password>\"')\ndef user_enters_credentials(driver, username, password):\n    login_page = LoginPage(driver)\n    login_page.login(username, password)\n\n@then('the user should be logged in')\ndef user_logged_in(driver):\n    assert \"inventory\" in driver.current_url\n"
+        },
+        {
+          "path": "src/tests/login.feature",
+          "content": "Feature: Login\n\n  Scenario: Successful login with valid credentials\n    Given the user is on the login page\n    When the user enters username \"standard_user\" and password \"secret_sauce\"\n    Then the user should be logged in\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# PyTestBDD Project\n\n## Setup\n\n1. Install Python 3.x\n2. Install the dependencies:\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n3. Ensure `chromedriver` is installed and accessible in your PATH.\n\n## Running Tests\n\nTo execute the tests, run:\n```bash\npytest\n```\n"
+        }
+      ],
+      "updatedAt": "2025-09-09T18:25:13.042Z"
     }
   ]
 }
