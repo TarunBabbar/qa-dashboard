@@ -207,63 +207,63 @@ export default function TestRuns() {
     // Pytest: "========================= X passed, Y failed, Z skipped in ... =========================" 
     // or "========================= X passed in ... ========================="
     // Also handle "X passed, Y warnings, Z errors" format
-    const pytestEnd = /=+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s =+/i.exec(text);
-    if (pytestEnd) {
-      const p = parseInt(pytestEnd[1], 10);
-      const f = pytestEnd[2] ? parseInt(pytestEnd[2], 10) : 0;
-      const e = pytestEnd[3] ? parseInt(pytestEnd[3], 10) : 0;
+    const summaryLineMatch = /=+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s =+/i.exec(text);
+    if (summaryLineMatch) {
+      const p = parseInt(summaryLineMatch[1], 10);
+      const f = summaryLineMatch[2] ? parseInt(summaryLineMatch[2], 10) : 0;
+      const e = summaryLineMatch[3] ? parseInt(summaryLineMatch[3], 10) : 0;
       const totalFailed = f + e; // errors count as failures
       return { passed: p, failed: totalFailed, total: p + totalFailed };
     }
     
     // Pytest alternative format: "== X passed, Y failed, Z skipped in ... =="
-    const pytestAlt = /==+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s ==+/i.exec(text);
-    if (pytestAlt) {
-      const p = parseInt(pytestAlt[1], 10);
-      const f = pytestAlt[2] ? parseInt(pytestAlt[2], 10) : 0;
-      const e = pytestAlt[3] ? parseInt(pytestAlt[3], 10) : 0;
+    const summaryAltMatch = /==+ (\d+) passed(?:, (\d+) failed)?(?:, \d+ (?:warning|skipped))?(?:, (\d+) errors?)? in [\d.]+s ==+/i.exec(text);
+    if (summaryAltMatch) {
+      const p = parseInt(summaryAltMatch[1], 10);
+      const f = summaryAltMatch[2] ? parseInt(summaryAltMatch[2], 10) : 0;
+      const e = summaryAltMatch[3] ? parseInt(summaryAltMatch[3], 10) : 0;
       const totalFailed = f + e; // errors count as failures
       return { passed: p, failed: totalFailed, total: p + totalFailed };
     }
     
     // Pytest simple format: look for "X PASSED" and "Y FAILED" lines
-    const pytestPassed = /(\d+) PASSED/i.exec(text);
-    const pytestFailed = /(\d+) FAILED/i.exec(text);
-    if (pytestPassed || pytestFailed) {
-      const p = pytestPassed ? parseInt(pytestPassed[1], 10) : 0;
-      const f = pytestFailed ? parseInt(pytestFailed[1], 10) : 0;
+    const simplePassedMatch = /(\d+) PASSED/i.exec(text);
+    const simpleFailedMatch = /(\d+) FAILED/i.exec(text);
+    if (simplePassedMatch || simpleFailedMatch) {
+      const p = simplePassedMatch ? parseInt(simplePassedMatch[1], 10) : 0;
+      const f = simpleFailedMatch ? parseInt(simpleFailedMatch[1], 10) : 0;
       return { passed: p, failed: f, total: p + f };
     }
     
     // Jest/Vitest: "Tests: 4 passed, 1 failed, 10 total" (order can vary)
-    const jest = /Tests?:\s*(?:(\d+)\s*passed)?[, ]*\s*(?:(\d+)\s*failed)?[, ]*\s*(\d+)\s*total/i.exec(text);
-    if (jest) {
-      const p = jest[1] ? parseInt(jest[1], 10) : null;
-      const f = jest[2] ? parseInt(jest[2], 10) : null;
-      const t = jest[3] ? parseInt(jest[3], 10) : null;
+    const testsTotalsMatch = /Tests?:\s*(?:(\d+)\s*passed)?[, ]*\s*(?:(\d+)\s*failed)?[, ]*\s*(\d+)\s*total/i.exec(text);
+    if (testsTotalsMatch) {
+      const p = testsTotalsMatch[1] ? parseInt(testsTotalsMatch[1], 10) : null;
+      const f = testsTotalsMatch[2] ? parseInt(testsTotalsMatch[2], 10) : null;
+      const t = testsTotalsMatch[3] ? parseInt(testsTotalsMatch[3], 10) : null;
       return { passed: p, failed: f, total: t };
     }
     
     // Mocha: "x passing" / "y failing"
-    const mochaPass = /([0-9]+)\s+passing/i.exec(text);
-    const mochaFail = /([0-9]+)\s+failing/i.exec(text);
-    if (mochaPass || mochaFail) {
-      const p = mochaPass ? parseInt(mochaPass[1], 10) : null;
-      const f = mochaFail ? parseInt(mochaFail[1], 10) : (text.match(/Error:|AssertionError|failing/i) ? 1 : null);
+    const passingCountMatch = /([0-9]+)\s+passing/i.exec(text);
+    const failingCountMatch = /([0-9]+)\s+failing/i.exec(text);
+    if (passingCountMatch || failingCountMatch) {
+      const p = passingCountMatch ? parseInt(passingCountMatch[1], 10) : null;
+      const f = failingCountMatch ? parseInt(failingCountMatch[1], 10) : (text.match(/Error:|AssertionError|failing/i) ? 1 : null);
       return { passed: p, failed: f, total: p != null && f != null ? p + f : null };
     }
     
     // dotnet: "Total tests: X. Passed: Y. Failed: Z. Skipped: K." (avoid 's' flag; use [\s\S])
-    const dotnet = /Total tests:\s*(\d+)[\s\S]*?Passed:\s*(\d+)[\s\S]*?Failed:\s*(\d+)/i.exec(text);
-    if (dotnet) {
-      const t = parseInt(dotnet[1], 10), p = parseInt(dotnet[2], 10), f = parseInt(dotnet[3], 10);
+    const structuredTotalsMatch = /Total tests:\s*(\d+)[\s\S]*?Passed:\s*(\d+)[\s\S]*?Failed:\s*(\d+)/i.exec(text);
+    if (structuredTotalsMatch) {
+      const t = parseInt(structuredTotalsMatch[1], 10), p = parseInt(structuredTotalsMatch[2], 10), f = parseInt(structuredTotalsMatch[3], 10);
       return { passed: p, failed: f, total: t };
     }
     
     // Maven/Surefire often prints "Tests run: X, Failures: Y, Errors: Z, Skipped: K"
-    const surefire = /Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)/i.exec(text);
-    if (surefire) {
-      const run = parseInt(surefire[1], 10), failures = parseInt(surefire[2], 10), errors = parseInt(surefire[3], 10);
+    const testsRunSummaryMatch = /Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)/i.exec(text);
+    if (testsRunSummaryMatch) {
+      const run = parseInt(testsRunSummaryMatch[1], 10), failures = parseInt(testsRunSummaryMatch[2], 10), errors = parseInt(testsRunSummaryMatch[3], 10);
       return { passed: run - failures - errors, failed: failures + errors, total: run };
     }
     
@@ -562,26 +562,39 @@ export default function TestRuns() {
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 mt-2">
-                    <div className="p-3 rounded border bg-green-50">
-                      <div className="text-slate-600 text-xs">Tests Passed</div>
-                      <div className="text-2xl font-semibold text-green-700">
-                        {selected.status === 'running' && counts.passed === null ? '...' : (counts.passed ?? '—')}
+                  {(() => {
+                    const p = counts.passed;
+                    const fParser = counts.failed;
+                    const fDetails = failedDetails && failedDetails.length > 0 ? failedDetails.length : null;
+
+                    // Prefer failure details when parser failed is null or zero but details exist
+                    const failedNum = (fParser === null || fParser === 0) && fDetails ? fDetails : fParser;
+
+                    // Compute total as Passed + Failed when either side is known
+                    const totalFromParts = (p !== null || failedNum !== null) ? ((p ?? 0) + (failedNum ?? 0)) : null;
+                    const totalNum = totalFromParts !== null ? totalFromParts : (counts.total ?? null);
+
+                    const passedDisplay = (selected.status === 'running' && p === null) ? '...' : (p ?? '—');
+                    const failedDisplay = (selected.status === 'running' && failedNum === null) ? '...' : (failedNum ?? '—');
+                    const totalDisplay = (selected.status === 'running' && totalNum === null) ? '...' : (totalNum ?? '—');
+
+                    return (
+                      <div className="grid grid-cols-3 gap-3 mt-2">
+                        <div className="p-3 rounded border bg-green-50">
+                          <div className="text-slate-600 text-xs">Tests Passed</div>
+                          <div className="text-2xl font-semibold text-green-700">{passedDisplay}</div>
+                        </div>
+                        <div className="p-3 rounded border bg-red-50">
+                          <div className="text-slate-600 text-xs">Tests Failed</div>
+                          <div className="text-2xl font-semibold text-red-700">{failedDisplay}</div>
+                        </div>
+                        <div className="p-3 rounded border bg-slate-50">
+                          <div className="text-slate-600 text-xs">Total</div>
+                          <div className="text-2xl font-semibold text-slate-800">{totalDisplay}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="p-3 rounded border bg-red-50">
-                      <div className="text-slate-600 text-xs">Tests Failed</div>
-                      <div className="text-2xl font-semibold text-red-700">
-                        {selected.status === 'running' && counts.failed === null ? '...' : (counts.failed ?? '—')}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded border bg-slate-50">
-                      <div className="text-slate-600 text-xs">Total</div>
-                      <div className="text-2xl font-semibold text-slate-800">
-                        {selected.status === 'running' && counts.total === null ? '...' : (counts.total ?? '—')}
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                   {failedDetails.length > 0 && selected.status === 'failed' && (
                     <div key={selectedRunId} className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
                       <div className="text-red-700 font-medium text-sm mb-3">Failed Test Details:</div>
